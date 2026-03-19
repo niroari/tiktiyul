@@ -140,7 +140,7 @@ header h1{font-size:20px;font-weight:700}
 .sign-card{background:white;border-radius:16px;padding:32px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
 .sign-card h2{font-size:20px;color:#1b4332;margin-bottom:6px}
 .sign-card .sign-meta{font-size:13px;color:#666;margin-bottom:20px;line-height:1.6}
-.sign-card canvas{border:1.5px dashed #bbb;border-radius:8px;cursor:crosshair;width:100%;height:120px;background:#fafffe;display:block;margin-bottom:10px;touch-action:none}
+.sign-card canvas{border:1.5px dashed #bbb;border-radius:8px;cursor:crosshair;width:100%;height:140px;background:#fafffe;display:block;margin-bottom:10px;touch-action:none;user-select:none;-webkit-user-select:none}
 @media(max-width:600px){.sig-grid{grid-template-columns:1fr}}
 
 /* ── Checklist (appendix א) ── */
@@ -594,7 +594,7 @@ header h1{font-size:20px;font-weight:700}
     <div style="font-size:40px;margin-bottom:10px">✍️</div>
     <h2 id="sign-role-title">חתימה</h2>
     <div class="sign-meta" id="sign-meta"></div>
-    <canvas id="sign-canvas" width="360" height="120"></canvas>
+    <canvas id="sign-canvas" width="360" height="140" style="touch-action:none;user-select:none;-webkit-user-select:none"></canvas>
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn btn-secondary" style="flex:1;font-size:13px" onclick="clearCanvas('sign-canvas')">נקה</button>
     </div>
@@ -1306,26 +1306,34 @@ async function exportBPDF() {
 
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
 function setupCanvas(canvas, onEnd) {
+  // Clone to remove any stale listeners
+  const fresh = canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(fresh, canvas);
+  canvas = fresh;
+
   const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   let drawing = false;
+
   function pos(e) {
-    const r = canvas.getBoundingClientRect();
-    const s = canvas.width / r.width;
+    const r   = canvas.getBoundingClientRect();
+    const scX = canvas.width  / r.width;
+    const scY = canvas.height / r.height;
     const src = e.touches ? e.touches[0] : e;
-    return { x: (src.clientX - r.left) * s, y: (src.clientY - r.top) * s };
+    return { x: (src.clientX - r.left) * scX, y: (src.clientY - r.top) * scY };
   }
   canvas.addEventListener('mousedown',  e => { drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
   canvas.addEventListener('mousemove',  e => { if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
   canvas.addEventListener('mouseup',    () => { drawing=false; if(onEnd)onEnd(); });
-  canvas.addEventListener('mouseleave', () => { drawing=false; });
+  canvas.addEventListener('mouseleave', () => { if(drawing){ drawing=false; if(onEnd)onEnd(); }});
   canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); },{passive:false});
   canvas.addEventListener('touchmove',  e => { e.preventDefault(); if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); },{passive:false});
   canvas.addEventListener('touchend',   () => { drawing=false; if(onEnd)onEnd(); });
+  return canvas; // return the fresh element
 }
 function clearCanvas(id) {
   const c = document.getElementById(id);
-  if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);
+  if(c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
 }
 function canvasIsEmpty(canvas) {
   const d = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
@@ -1481,14 +1489,15 @@ let signCurrentDocId = null;
 
 async function loadSignPage(docId) {
   signCurrentDocId = docId;
-  // Init canvas after layout is ready
-  requestAnimationFrame(() => {
+  // Init canvas after layout is fully settled
+  setTimeout(() => {
     const canvas = document.getElementById('sign-canvas');
-    const w = canvas.parentElement?.offsetWidth || 360;
-    canvas.width  = w > 40 ? w : 360;
-    canvas.height = 120;
+    const card   = document.querySelector('.sign-card');
+    const w = (card ? card.clientWidth - 64 : 0) || 360;
+    canvas.width  = Math.max(w, 280);
+    canvas.height = 140;
     setupCanvas(canvas, null);
-  });
+  }, 300);
   try {
     const doc = await db.collection('tiyul_signatures').doc(docId).get();
     if (!doc.exists) {
@@ -1511,7 +1520,7 @@ async function loadSignPage(docId) {
 }
 
 async function submitSignature() {
-  const canvas = document.getElementById('sign-canvas');
+  const canvas = document.querySelector('.sign-card canvas') || document.getElementById('sign-canvas');
   if (canvasIsEmpty(canvas)) {
     document.getElementById('sign-error').textContent = 'נא לחתום לפני השליחה';
     document.getElementById('sign-error').style.display = '';
