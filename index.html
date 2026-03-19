@@ -657,6 +657,7 @@ let currentUser  = null;
 let currentTrip  = null;
 let editingTripId = null;
 let trips = {};
+let signCurrentDocId = null;
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 if (signDocId) {
@@ -1512,8 +1513,6 @@ function shareGmail() {
 }
 
 // ─── Sign page (public — no login) ────────────────────────────────────────────
-let signCurrentDocId = null;
-
 async function loadSignPage(docId) {
   signCurrentDocId = docId;
   document.getElementById('canvas-debug').textContent = 'loadSignPage נקרא';
