@@ -1762,27 +1762,49 @@ async function exportGPDF() {
   const rows = sortedStudents();
   const pdfEl = document.getElementById('pdf-appendix-g');
 
-  const tableRows = rows.map((s, i) => `<tr style="${i%2===0?'':'background:#f0f7f4'}">
-    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px;direction:ltr">${esc(s.id)}</td>
-    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px">${esc(s.last)}</td>
-    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px">${esc(s.first)}</td>
-    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px;text-align:center">${esc(s.class)}</td>
-    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px;direction:ltr">${esc(s.phone)}</td>
-  </tr>`).join('');
+  // Group by class (always sort by class→last for PDF, regardless of screen sort)
+  const pdfRows = [...gStudents].sort((a,b) => {
+    const c = a.class.localeCompare(b.class,'he');
+    return c !== 0 ? c : a.last.localeCompare(b.last,'he');
+  });
+  const grouped = [];
+  let lastClass = null;
+  let rowInClass = 0;
+  for (const s of pdfRows) {
+    if (s.class !== lastClass) {
+      grouped.push({ type:'header', label: `כיתה ${s.class}` });
+      lastClass = s.class;
+      rowInClass = 0;
+    }
+    grouped.push({ type:'row', s, i: rowInClass++ });
+  }
 
-  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:16px 20px;font-size:10px;background:white">
-    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:12px">
+  const tableRows = grouped.map(g => {
+    if (g.type === 'header') return `
+      <tr><td colspan="5" style="padding:5px 6px;background:#1b4332;color:white;font-size:11px;font-weight:bold;border:1px solid #1b4332">${g.label}</td></tr>`;
+    const { s, i } = g;
+    return `<tr style="${i%2===0?'':'background:#f0f7f4'}">
+      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px;direction:ltr">${esc(s.id)}</td>
+      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px">${esc(s.last)}</td>
+      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px">${esc(s.first)}</td>
+      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px;text-align:center">${esc(s.class)}</td>
+      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px;direction:ltr">${esc(s.phone)}</td>
+    </tr>`;
+  }).join('');
+
+  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:12px 16px;font-size:10px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:6px;margin-bottom:10px">
       <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
-      <div style="font-size:14px;font-weight:bold;margin-top:4px">נספח ז׳ — רשימת תלמידים</div>
-      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')} | ${rows.length} תלמידים</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:3px">נספח ז׳ — רשימת תלמידים</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')} | ${pdfRows.length} תלמידים</div>
     </div>
     <table style="width:100%;border-collapse:collapse">
-      <thead><tr style="background:#1b4332;color:white">
-        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:90px;text-align:right">ת.ז</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;text-align:right">שם משפחה</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;text-align:right">שם פרטי</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:55px;text-align:right">כיתה</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:90px;text-align:right">טלפון</th>
+      <thead><tr style="background:#2d6a4f;color:white">
+        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;width:95px;text-align:right">ת.ז</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;text-align:right">שם משפחה</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;text-align:right">שם פרטי</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;width:55px;text-align:right">כיתה</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;width:95px;text-align:right">טלפון</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
