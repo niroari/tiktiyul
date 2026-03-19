@@ -858,14 +858,9 @@ header h1{font-size:20px;font-weight:700}
           </div>
           <div class="sig-panel">
             <div class="sig-panel-title">✍️ מנהל/ת ביה"ס</div>
-            <div id="masa-principal-signed" style="display:none">
-              <div class="sig-img-box"><img id="masa-principal-sig-img"></div>
-              <button class="btn btn-danger" style="font-size:12px;width:100%" onclick="clearMasaSig('principal')">מחק חתימה</button>
-            </div>
-            <div id="masa-principal-unsigned">
-              <canvas id="masa-principal-canvas" class="sig-canvas"></canvas>
-              <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%" onclick="clearCanvas('masa-principal-canvas')">נקה</button>
-            </div>
+            <div id="masa-principal-status"></div>
+            <button class="btn btn-secondary" style="font-size:12px;margin-top:8px;width:100%" id="masa-principal-send-btn" onclick="sendMasaPrincipalSigLink()">שלח לחתימה ↗</button>
+            <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%;display:none" id="masa-principal-refresh-btn" onclick="refreshMasaPrincipalSig()">🔄 בדוק אם חתם/ה</button>
           </div>
         </div>
 
@@ -3079,6 +3074,7 @@ async function loadMasa() {
   }
   renderMasaForm();
   setupMasaCanvases();
+  loadMasaPrincipalRemoteSig();
   setStatus('masa-status', '');
 }
 
@@ -3427,29 +3423,106 @@ async function exportMasaPDF(printMode=false) {
 
 // ─── הודעת מסע signatures ─────────────────────────────────────────────────────
 function renderMasaSigs() {
-  ['leader','principal'].forEach(role => {
-    const sig = masaData[role+'Sig'];
-    const signed   = document.getElementById('masa-'+role+'-signed');
-    const unsigned = document.getElementById('masa-'+role+'-unsigned');
-    if (!signed) return;
+  // leader — direct canvas
+  const sig      = masaData.leaderSig;
+  const signed   = document.getElementById('masa-leader-signed');
+  const unsigned = document.getElementById('masa-leader-unsigned');
+  if (signed) {
     if (sig) {
-      document.getElementById('masa-'+role+'-sig-img').src = sig;
+      document.getElementById('masa-leader-sig-img').src = sig;
       signed.style.display   = '';
       unsigned.style.display = 'none';
     } else {
       signed.style.display   = 'none';
       unsigned.style.display = '';
     }
-  });
+  }
+  // principal — remote signing
+  renderMasaPrincipalRemoteSig();
 }
 
 function setupMasaCanvases() {
-  ['leader','principal'].forEach(role => {
-    if (!masaData[role+'Sig']) {
-      const canvas = document.getElementById('masa-'+role+'-canvas');
-      if (canvas) setupCanvas(canvas, () => saveMasaSig(role));
+  if (!masaData.leaderSig) {
+    const canvas = document.getElementById('masa-leader-canvas');
+    if (canvas) setupCanvas(canvas, () => saveMasaSig('leader'));
+  }
+}
+
+let masaPrincipalSigStatus = 'none';
+
+function renderMasaPrincipalRemoteSig() {
+  const statusEl = document.getElementById('masa-principal-status');
+  const sendBtn  = document.getElementById('masa-principal-send-btn');
+  const refBtn   = document.getElementById('masa-principal-refresh-btn');
+  if (!statusEl) return;
+  const sig = masaData && masaData.principalSig;
+  if (masaPrincipalSigStatus === 'signed' && sig) {
+    statusEl.innerHTML = `<span class="sig-badge signed">✓ חתם/ה</span><div class="sig-img-box"><img src="${sig}" style="max-width:100%;max-height:70px"></div>`;
+    sendBtn.textContent = 'שלח שוב ↗';
+    refBtn.style.display = 'none';
+  } else if (masaPrincipalSigStatus === 'pending') {
+    statusEl.innerHTML = `<span class="sig-badge pending">⏳ ממתין לחתימה</span>`;
+    sendBtn.textContent = 'שלח שוב ↗';
+    refBtn.style.display = '';
+  } else {
+    statusEl.innerHTML = `<span class="sig-badge none">לא נשלח עדיין</span>`;
+    sendBtn.textContent = 'שלח לחתימה ↗';
+    refBtn.style.display = 'none';
+  }
+}
+
+async function loadMasaPrincipalRemoteSig() {
+  if (!currentTrip || isLocal) return;
+  const docId = sigDocId('masa_principal');
+  if (!docId) return;
+  try {
+    const doc = await sigsRef().doc(docId).get();
+    if (doc.exists) {
+      const d = doc.data();
+      masaPrincipalSigStatus = d.status || 'pending';
+      if (d.signature && masaData) masaData.principalSig = d.signature;
     }
-  });
+  } catch(e) { console.error(e); }
+  renderMasaPrincipalRemoteSig();
+}
+
+async function sendMasaPrincipalSigLink() {
+  if (!currentTrip || !currentUser) return;
+  const t = currentTrip;
+  const docId = sigDocId('masa_principal');
+  const data = {
+    uid: currentUser.uid, tripId: t.id,
+    role: 'masa_principal', roleName: 'מנהל/ת ביה"ס',
+    tripName: t.name, schoolName: t.school, leaderName: t.leaderName||'',
+    status: 'pending', signature: null,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (!isLocal) {
+    try { await sigsRef().doc(docId).set(data); } catch(e) { alert('שגיאה: ' + e.message); return; }
+  }
+  masaPrincipalSigStatus = 'pending';
+  renderMasaPrincipalRemoteSig();
+  currentShareRole = 'masa_principal';
+  const url = `${location.origin}${location.pathname}?tiyulsign=${docId}`;
+  document.getElementById('share-title').textContent = 'שלח לחתימה — מנהל/ת ביה"ס';
+  document.getElementById('share-desc').textContent  = `שלח את הקישור הבא למנהל/ת לחתימה על הודעת מסע עבור טיול "${t.name}"`;
+  document.getElementById('share-link').value = url;
+  openModal('shareModal');
+}
+
+async function refreshMasaPrincipalSig() {
+  if (!currentTrip || isLocal) return;
+  try {
+    const doc = await sigsRef().doc(sigDocId('masa_principal')).get();
+    if (doc.exists) {
+      const d = doc.data();
+      masaPrincipalSigStatus = d.status || 'pending';
+      if (d.signature && masaData) masaData.principalSig = d.signature;
+    }
+    renderMasaPrincipalRemoteSig();
+    if (masaPrincipalSigStatus === 'signed') showToast('✓ מנהל/ת ביה"ס חתם/ה');
+    else showToast('עדיין ממתין לחתימה');
+  } catch(e) { console.error(e); }
 }
 
 function saveMasaSig(role) {
@@ -3477,7 +3550,7 @@ let bSigs = { teacher:null, coordinator:null, principal:null };
 let bSigStatus = { coordinator:'none', principal:'none' };
 let currentShareRole = null;
 
-const ROLE_LABELS = { coordinator:'רכז/ת הטיולים', principal:'מנהל/ת ביה"ס', c_principal:'מנהל/ת ביה"ס' };
+const ROLE_LABELS = { coordinator:'רכז/ת הטיולים', principal:'מנהל/ת ביה"ס', c_principal:'מנהל/ת ביה"ס', masa_principal:'מנהל/ת ביה"ס' };
 
 function sigDocId(role) {
   if (!currentUser || !currentTrip) return null;
