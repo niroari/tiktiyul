@@ -2720,7 +2720,7 @@ function renderGTable() {
       <td style="font-size:13px">${esc(s.last)}</td>
       <td style="font-size:13px">${esc(s.first)}</td>
       <td style="font-size:13px;text-align:center">${esc(s.class)}</td>
-      <td style="font-size:13px;text-align:center">${s.gender==='נ'?'👧':s.gender==='ז'?'👦':''}</td>
+      <td style="text-align:center">${s.gender==='נ'?'<span style="background:#fce4ec;color:#c2185b;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600">נקבה</span>':s.gender==='ז'?'<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600">זכר</span>':''}</td>
       <td style="font-size:13px;direction:ltr">${esc(s.phone)}</td>
       <td style="text-align:center"><input type="checkbox" ${s.going!==false?'checked':''}
         onchange="toggleGoing('${esc(s.id)}')" style="cursor:pointer;width:16px;height:16px"></td>
