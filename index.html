@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תיק טיול</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f2;color:#1a2e1a;direction:rtl;min-height:100vh;font-size:15px}
+
+/* ── Header ── */
+header{background:#1b4332;color:white;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2);position:sticky;top:0;z-index:100}
+header h1{font-size:20px;font-weight:700}
+.header-user{font-size:13px;opacity:.85;display:flex;align-items:center;gap:12px}
+.btn-logout{background:rgba(255,255,255,.15);border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+.btn-logout:hover{background:rgba(255,255,255,.25)}
+
+/* ── Container ── */
+.container{max-width:960px;margin:0 auto;padding:24px 16px}
+
+/* ── Login ── */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1b4332,#2d6a4f)}
+.login-card{background:white;border-radius:16px;padding:40px;width:360px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
+.login-card h2{font-size:22px;color:#1b4332;margin-bottom:8px}
+.login-card p{color:#666;font-size:14px;margin-bottom:28px}
+.login-tabs{display:flex;border-bottom:2px solid #e0e0e0;margin-bottom:24px}
+.login-tab{flex:1;padding:10px;background:none;border:none;cursor:pointer;font-size:14px;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;font-family:inherit}
+.login-tab.active{color:#1b4332;border-bottom-color:#2d6a4f;font-weight:600}
+
+/* ── Forms ── */
+.form-group{margin-bottom:16px;text-align:right}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#444;margin-bottom:6px}
+.form-control{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;direction:rtl;transition:border-color .2s;background:white}
+.form-control:focus{outline:none;border-color:#2d6a4f;box-shadow:0 0 0 3px rgba(45,106,79,.1)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── Buttons ── */
+.btn{padding:10px 20px;border-radius:8px;border:none;font-size:15px;font-family:inherit;cursor:pointer;transition:all .2s;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn-primary{background:#2d6a4f;color:white}
+.btn-primary:hover{background:#1b4332}
+.btn-secondary{background:#e8f5e9;color:#1b4332}
+.btn-secondary:hover{background:#c8e6c9}
+.btn-danger{background:#ffebee;color:#c62828}
+.btn-danger:hover{background:#ffcdd2}
+.btn-google{background:white;color:#444;border:1.5px solid #ddd;width:100%}
+.btn-google:hover{background:#f5f5f5}
+.btn-full{width:100%}
+.error-msg{background:#ffebee;color:#c62828;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:12px}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:#aaa;font-size:13px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#e0e0e0}
+
+/* ── Trip List ── */
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.page-title{font-size:24px;font-weight:700;color:#1b4332}
+.trips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.trip-card{background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;transition:all .2s;border:2px solid transparent}
+.trip-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12);border-color:#2d6a4f}
+.trip-card-icon{font-size:32px;margin-bottom:12px}
+.trip-card-name{font-size:17px;font-weight:700;color:#1b4332;margin-bottom:6px}
+.trip-card-details{font-size:13px;color:#666;line-height:1.8}
+.empty-state{text-align:center;padding:60px 20px;color:#888;grid-column:1/-1}
+.empty-state-icon{font-size:64px;margin-bottom:16px}
+.empty-state p{font-size:16px;margin-bottom:24px}
+
+/* ── Trip Detail ── */
+.back-btn{background:none;border:none;color:#2d6a4f;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 0;margin-bottom:20px;font-family:inherit;font-weight:600}
+.back-btn:hover{text-decoration:underline}
+.trip-header-card{background:white;border-radius:12px;padding:20px 24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);border-right:4px solid #2d6a4f}
+.trip-header-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.trip-header-title{font-size:22px;font-weight:700;color:#1b4332;margin-bottom:8px}
+.trip-header-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:#555}
+
+/* ── Appendix Tabs ── */
+.appendix-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;background:white;padding:12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.appendix-tab{padding:7px 12px;border-radius:7px;background:transparent;border:1.5px solid #ddd;cursor:pointer;font-size:13px;font-family:inherit;transition:all .2s;color:#555;white-space:nowrap}
+.appendix-tab:hover{border-color:#2d6a4f;color:#2d6a4f;background:#f0f9f4}
+.appendix-tab.active{background:#2d6a4f;color:white;border-color:#2d6a4f}
+.appendix-tab.filled::after{content:' ✓';font-size:11px}
+.appendix-tab.active.filled::after{color:#a5d6a7}
+.appendix-tab:not(.active).filled::after{color:#2d6a4f}
+
+/* ── Appendix Content ── */
+.appendix-content{display:none;background:white;border-radius:12px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.appendix-content.active{display:block}
+.appendix-title{font-size:20px;font-weight:700;color:#1b4332;margin-bottom:4px}
+.appendix-subtitle{font-size:13px;color:#888;margin-bottom:24px}
+.section-title{font-size:15px;font-weight:700;color:#2d6a4f;margin:24px 0 14px;padding-bottom:6px;border-bottom:2px solid #e8f5e9}
+.section-divider{border:none;border-top:1px solid #eee;margin:20px 0}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:white;border-radius:16px;padding:28px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.modal-title{font-size:20px;font-weight:700;color:#1b4332}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:#888;line-height:1;padding:0 4px}
+.modal-footer{display:flex;gap:12px;margin-top:24px;justify-content:flex-end}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:24px;background:#1b4332;color:white;padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);transform:translateY(80px);opacity:0;transition:all .3s;z-index:9999;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* ── Placeholder ── */
+.coming-soon{text-align:center;padding:60px 20px;color:#aaa}
+.coming-soon-icon{font-size:48px;margin-bottom:12px}
+.coming-soon p{font-size:15px}
+
+/* ── Mobile ── */
+@media(max-width:600px){
+  .container{padding:16px 12px}
+  .trips-grid{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  .appendix-tabs{padding:8px;gap:4px}
+  .appendix-tab{padding:6px 9px;font-size:12px}
+  .appendix-content{padding:18px}
+  .modal{padding:20px}
+  .trip-header-top{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     LOGIN SCREEN
+═════════════════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div style="font-size:48px;margin-bottom:12px">🏕️</div>
+    <h2>תיק טיול</h2>
+    <p>מערכת ניהול תיקי טיול לבתי ספר</p>
+
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="showLoginTab('google')">Google</button>
+      <button class="login-tab" onclick="showLoginTab('email')">אימייל וסיסמה</button>
+    </div>
+
+    <!-- Google -->
+    <div id="tab-google">
+      <button class="btn btn-google" onclick="signInGoogle()">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        המשך עם Google
+      </button>
+    </div>
+
+    <!-- Email / Password -->
+    <div id="tab-email" style="display:none">
+      <div class="form-group">
+        <label>אימייל</label>
+        <input type="email" class="form-control" id="loginEmail" placeholder="your@email.com" style="direction:ltr">
+      </div>
+      <div class="form-group">
+        <label>סיסמה</label>
+        <input type="password" class="form-control" id="loginPassword" placeholder="סיסמה">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="signInEmail()">כניסה</button>
+      <div class="divider">או</div>
+      <button class="btn btn-secondary btn-full" onclick="showRegister()">הרשמה למשתמש חדש</button>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" style="display:none">
+      <div class="form-group">
+        <label>אימייל</label>
+        <input type="email" class="form-control" id="regEmail" placeholder="your@email.com" style="direction:ltr">
+      </div>
+      <div class="form-group">
+        <label>סיסמה</label>
+        <input type="password" class="form-control" id="regPassword" placeholder="לפחות 6 תווים">
+      </div>
+      <div class="form-group">
+        <label>אימות סיסמה</label>
+        <input type="password" class="form-control" id="regPassword2" placeholder="הזן שוב">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="register()">הרשמה</button>
+      <div class="divider">או</div>
+      <button class="btn btn-secondary btn-full" onclick="showLoginTab('email')">← חזרה לכניסה</button>
+    </div>
+
+    <div id="loginError" class="error-msg" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MAIN APP
+═════════════════════════════════════════════════════ -->
+<div id="app" style="display:none">
+
+  <header>
+    <h1>🏕️ תיק טיול</h1>
+    <div class="header-user">
+      <span id="headerUserName"></span>
+      <button class="btn-logout" onclick="signOut()">יציאה</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ── Trip List ── -->
+    <div id="tripListView">
+      <div class="page-header">
+        <div class="page-title">הטיולים שלי</div>
+        <button class="btn btn-primary" onclick="openCreateTrip()">+ טיול חדש</button>
+      </div>
+      <div id="tripsGrid" class="trips-grid">
+        <div class="empty-state">
+          <div class="empty-state-icon">🗺️</div>
+          <p>עדיין אין טיולים. צור את הראשון!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Trip Detail ── -->
+    <div id="tripDetailView" style="display:none">
+
+      <button class="back-btn" onclick="showTripList()">← כל הטיולים</button>
+
+      <!-- Trip header info card -->
+      <div class="trip-header-card">
+        <div class="trip-header-top">
+          <div>
+            <div class="trip-header-title" id="detailTripName"></div>
+            <div class="trip-header-meta">
+              <span>🏫 <span id="detailSchool"></span></span>
+              <span>📅 <span id="detailDates"></span></span>
+              <span>📍 <span id="detailArea"></span></span>
+              <span>👨‍🏫 <span id="detailLeader"></span></span>
+              <span>🎓 <span id="detailClasses"></span></span>
+            </div>
+          </div>
+          <button class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="openEditTrip()">✏️ עריכה</button>
+        </div>
+      </div>
+
+      <!-- Appendix tab bar -->
+      <div class="appendix-tabs" id="appendixTabs">
+        <button class="appendix-tab active" onclick="showAppendix('a')" id="tab-a">א׳ – ביקורת</button>
+        <button class="appendix-tab" onclick="showAppendix('b')" id="tab-b">ב׳ – אישור מנהל</button>
+        <button class="appendix-tab" onclick="showAppendix('c')" id="tab-c">ג׳ – כתב מינוי</button>
+        <button class="appendix-tab" onclick="showAppendix('d')" id="tab-d">ד׳ – לוח זמנים</button>
+        <button class="appendix-tab" onclick="showAppendix('e')" id="tab-e">ה׳ – טלפונים</button>
+        <button class="appendix-tab" onclick="showAppendix('f')" id="tab-f">ו׳ – טבלת שליטה</button>
+        <button class="appendix-tab" onclick="showAppendix('g')" id="tab-g">ז׳ – תלמידים</button>
+        <button class="appendix-tab" onclick="showAppendix('h')" id="tab-h">ח׳ – אישור הורים</button>
+        <button class="appendix-tab" onclick="showAppendix('i')" id="tab-i">ט׳ – ציוד חובה</button>
+        <button class="appendix-tab" onclick="showAppendix('j')" id="tab-j">י׳ – מגבלות רפואיות</button>
+        <button class="appendix-tab" onclick="showAppendix('masa')" id="tab-masa">הודעת מסע</button>
+      </div>
+
+      <!-- ══ Appendix א – ביקורת לפני יציאה ══ -->
+      <div class="appendix-content active" id="content-a">
+        <div class="appendix-title">נספח א׳ – טופס ביקורת לפני יציאה לטיול</div>
+        <div class="appendix-subtitle">ממלאים שבוע לפני ובבוקר הטיול</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ב ══ -->
+      <div class="appendix-content" id="content-b">
+        <div class="appendix-title">נספח ב׳ – אישור תוכנית הטיול</div>
+        <div class="appendix-subtitle">אישור מנהל/ת ביה"ס ורכז/ת הטיולים</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ג ══ -->
+      <div class="appendix-content" id="content-c">
+        <div class="appendix-title">נספח ג׳ – כתב מינוי לאחראי/ת טיול</div>
+        <div class="appendix-subtitle">בחתימת מנהל/ת ביה"ס</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ד ══ -->
+      <div class="appendix-content" id="content-d">
+        <div class="appendix-title">נספח ד׳ – תוכנית הטיול – לוח זמנים</div>
+        <div class="appendix-subtitle">פירוט ימי ושעות הפעילות</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ה ══ -->
+      <div class="appendix-content" id="content-e">
+        <div class="appendix-title">נספח ה׳ – טלפונים חיוניים</div>
+        <div class="appendix-subtitle">רשימת מלווים וגורמי חירום</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ו ══ -->
+      <div class="appendix-content" id="content-f">
+        <div class="appendix-title">נספח ו׳ – טבלת שליטה בטיול</div>
+        <div class="appendix-subtitle">חלוקה לאוטובוסים, מורות, נהגים, מדריכים</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ז ══ -->
+      <div class="appendix-content" id="content-g">
+        <div class="appendix-title">נספח ז׳ – רשימת התלמידים לפי כיתה</div>
+        <div class="appendix-subtitle">ייבוא מ-CSV</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ח ══ -->
+      <div class="appendix-content" id="content-h">
+        <div class="appendix-title">נספח ח׳ – אישור הורים</div>
+        <div class="appendix-subtitle">העלאת טופס ספציפי לטיול</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix ט ══ -->
+      <div class="appendix-content" id="content-i">
+        <div class="appendix-title">נספח ט׳ – ציוד החובה לטיול</div>
+        <div class="appendix-subtitle">רשימת ציוד עם אפשרות להתאמה</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ Appendix י ══ -->
+      <div class="appendix-content" id="content-j">
+        <div class="appendix-title">נספח י׳ – תלמידים בעלי מגבלות רפואיות</div>
+        <div class="appendix-subtitle">רשימה עם דגשים להשגחה</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+      <!-- ══ הודעת מסע ══ -->
+      <div class="appendix-content" id="content-masa">
+        <div class="appendix-title">הודעת מסע של"ח</div>
+        <div class="appendix-subtitle">הודעה רשמית למחוז על יציאה לטיול</div>
+        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+      </div>
+
+    </div><!-- /tripDetailView -->
+  </div><!-- /container -->
+</div><!-- /app -->
+
+
+<!-- ════════════════════════════════════════════════════
+     CREATE / EDIT TRIP MODAL
+═════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="tripModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="tripModalTitle">טיול חדש</div>
+      <button class="modal-close" onclick="closeModal('tripModal')">×</button>
+    </div>
+
+    <div class="form-group">
+      <label>שם הטיול *</label>
+      <input type="text" class="form-control" id="tripName" placeholder='למשל: טיול שנתי ט׳ תשפ"ו'>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>שם בית הספר *</label>
+        <input type="text" class="form-control" id="tripSchool" placeholder="שם ביה"ס">
+      </div>
+      <div class="form-group">
+        <label>אזור / יעד הטיול</label>
+        <input type="text" class="form-control" id="tripArea" placeholder="מדבר יהודה, גליל...">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>תאריך יציאה *</label>
+        <input type="date" class="form-control" id="tripFromDate" style="direction:ltr">
+      </div>
+      <div class="form-group">
+        <label>תאריך חזרה *</label>
+        <input type="date" class="form-control" id="tripToDate" style="direction:ltr">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>כיתות משתתפות</label>
+      <input type="text" class="form-control" id="tripClasses" placeholder='ט1, ט2, ט3'>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>שם האחראי/ת על הטיול</label>
+        <input type="text" class="form-control" id="tripLeader">
+      </div>
+      <div class="form-group">
+        <label>שם המנהל/ת</label>
+        <input type="text" class="form-control" id="tripPrincipal">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>שם רכז/ת הטיולים</label>
+        <input type="text" class="form-control" id="tripCoordinator">
+      </div>
+      <div class="form-group">
+        <label>מקום לינה</label>
+        <input type="text" class="form-control" id="tripAccommodation">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>חברת הסעה</label>
+      <input type="text" class="form-control" id="tripTransport">
+    </div>
+
+    <div id="tripModalError" class="error-msg" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('tripModal')">ביטול</button>
+      <button class="btn btn-primary" id="saveTripBtn" onclick="saveTrip()">צור טיול</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+// ─── Firebase Config ──────────────────────────────────────────────────────────
+// TODO: החלף עם פרטי הפרויקט שלך ב-Firebase Console
+const firebaseConfig = {
+  apiKey:            "AIzaSyA8aBlRd17XlnEJf4DE4FRLkKw9M53tCgw",
+  authDomain:        "tik-tiyul.firebaseapp.com",
+  projectId:         "tik-tiyul",
+  storageBucket:     "tik-tiyul.firebasestorage.app",
+  messagingSenderId: "597308781383",
+  appId:             "1:597308781383:web:ba50de8765d02ba54d9262"
+};
+
+// Local / file:// bypass — no login needed when running from disk
+const isLocal = location.protocol === 'file:' || location.hostname === 'localhost';
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentUser  = null;
+let currentTrip  = null;
+let editingTripId = null;
+let trips = {};
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+if (isLocal) {
+  // Skip login in local preview
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('headerUserName').textContent = 'תצוגה מקדימה';
+  currentUser = { uid: 'local-preview' };
+  loadTrips();
+} else {
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('headerUserName').textContent = user.displayName || user.email;
+      loadTrips();
+    } else {
+      currentUser = null;
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+  });
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+function showLoginTab(tab) {
+  document.querySelectorAll('.login-tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'google' && i === 0) || (tab === 'email' && i === 1));
+  });
+  document.getElementById('tab-google').style.display   = tab === 'google' ? '' : 'none';
+  document.getElementById('tab-email').style.display    = tab === 'email'  ? '' : 'none';
+  document.getElementById('tab-register').style.display = 'none';
+  document.getElementById('loginError').style.display   = 'none';
+}
+function showRegister() {
+  document.getElementById('tab-email').style.display    = 'none';
+  document.getElementById('tab-register').style.display = '';
+}
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = '';
+}
+function authErrMsg(code) {
+  const map = {
+    'auth/invalid-email':        'כתובת אימייל לא תקינה',
+    'auth/user-not-found':       'משתמש לא קיים',
+    'auth/wrong-password':       'סיסמה שגויה',
+    'auth/invalid-credential':   'אימייל או סיסמה שגויים',
+    'auth/email-already-in-use': 'כתובת אימייל כבר בשימוש',
+    'auth/weak-password':        'הסיסמה קצרה מדי (מינימום 6 תווים)',
+    'auth/too-many-requests':    'יותר מדי ניסיונות — נסה שוב מאוחר יותר',
+    'auth/popup-closed-by-user': 'החלון נסגר לפני השלמת ההתחברות',
+  };
+  return map[code] || `שגיאה (${code})`;
+}
+function signInGoogle() {
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .catch(e => showLoginError(authErrMsg(e.code)));
+}
+function signInEmail() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPassword').value;
+  if (!email || !pass) return showLoginError('נא למלא אימייל וסיסמה');
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e => showLoginError(authErrMsg(e.code)));
+}
+function register() {
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPassword').value;
+  const pass2 = document.getElementById('regPassword2').value;
+  if (!email || !pass) return showLoginError('נא למלא את כל השדות');
+  if (pass !== pass2)  return showLoginError('הסיסמאות אינן תואמות');
+  auth.createUserWithEmailAndPassword(email, pass)
+    .catch(e => showLoginError(authErrMsg(e.code)));
+}
+function signOut() { auth.signOut(); }
+
+// ─── Firestore helpers ────────────────────────────────────────────────────────
+function tripsRef() {
+  return db.collection('users').doc(currentUser.uid).collection('trips');
+}
+function formRef(tripId, formId) {
+  return db.collection('users').doc(currentUser.uid)
+           .collection('trips').doc(tripId)
+           .collection('forms').doc(formId);
+}
+
+// ─── Trip CRUD ────────────────────────────────────────────────────────────────
+async function loadTrips() {
+  if (isLocal) { renderTripList(); return; }
+  try {
+    const snap = await tripsRef().orderBy('createdAt', 'desc').get();
+    trips = {};
+    snap.forEach(doc => { trips[doc.id] = { id: doc.id, ...doc.data() }; });
+    renderTripList();
+  } catch(e) { console.error('loadTrips', e); }
+}
+
+function renderTripList() {
+  const grid = document.getElementById('tripsGrid');
+  const list = Object.values(trips);
+  if (list.length === 0) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">🗺️</div>
+      <p>עדיין אין טיולים. צור את הראשון!</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = list.map(t => `
+    <div class="trip-card" onclick="openTrip('${t.id}')">
+      <div class="trip-card-icon">🏕️</div>
+      <div class="trip-card-name">${esc(t.name)}</div>
+      <div class="trip-card-details">
+        ${t.school ? `🏫 ${esc(t.school)}<br>` : ''}
+        ${t.fromDate ? `📅 ${formatDate(t.fromDate)}${t.toDate ? ' – ' + formatDate(t.toDate) : ''}` : ''}
+        ${t.area ? `<br>📍 ${esc(t.area)}` : ''}
+        ${t.classes ? `<br>🎓 ${esc(t.classes)}` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCreateTrip() {
+  editingTripId = null;
+  document.getElementById('tripModalTitle').textContent = 'טיול חדש';
+  document.getElementById('saveTripBtn').textContent = 'צור טיול';
+  ['tripName','tripSchool','tripArea','tripFromDate','tripToDate','tripClasses',
+   'tripLeader','tripPrincipal','tripCoordinator','tripAccommodation','tripTransport']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('tripModalError').style.display = 'none';
+  openModal('tripModal');
+}
+
+function openEditTrip() {
+  editingTripId = currentTrip.id;
+  document.getElementById('tripModalTitle').textContent = 'עריכת פרטי טיול';
+  document.getElementById('saveTripBtn').textContent = 'שמור שינויים';
+  const t = currentTrip;
+  document.getElementById('tripName').value          = t.name          || '';
+  document.getElementById('tripSchool').value        = t.school        || '';
+  document.getElementById('tripArea').value          = t.area          || '';
+  document.getElementById('tripFromDate').value      = t.fromDate      || '';
+  document.getElementById('tripToDate').value        = t.toDate        || '';
+  document.getElementById('tripClasses').value       = t.classes       || '';
+  document.getElementById('tripLeader').value        = t.leaderName    || '';
+  document.getElementById('tripPrincipal').value     = t.principalName || '';
+  document.getElementById('tripCoordinator').value   = t.coordinatorName || '';
+  document.getElementById('tripAccommodation').value = t.accommodation || '';
+  document.getElementById('tripTransport').value     = t.transport     || '';
+  document.getElementById('tripModalError').style.display = 'none';
+  openModal('tripModal');
+}
+
+async function saveTrip() {
+  const name     = document.getElementById('tripName').value.trim();
+  const school   = document.getElementById('tripSchool').value.trim();
+  const fromDate = document.getElementById('tripFromDate').value;
+  const toDate   = document.getElementById('tripToDate').value;
+  if (!name || !school || !fromDate || !toDate) {
+    showModalError('tripModalError', 'נא למלא: שם טיול, שם בית הספר, תאריך יציאה וחזרה');
+    return;
+  }
+  const data = {
+    name, school, fromDate, toDate,
+    area:            document.getElementById('tripArea').value.trim(),
+    classes:         document.getElementById('tripClasses').value.trim(),
+    leaderName:      document.getElementById('tripLeader').value.trim(),
+    principalName:   document.getElementById('tripPrincipal').value.trim(),
+    coordinatorName: document.getElementById('tripCoordinator').value.trim(),
+    accommodation:   document.getElementById('tripAccommodation').value.trim(),
+    transport:       document.getElementById('tripTransport').value.trim(),
+  };
+  try {
+    if (editingTripId) {
+      if (!isLocal) await tripsRef().doc(editingTripId).update(data);
+      trips[editingTripId] = { ...trips[editingTripId], ...data };
+      currentTrip = trips[editingTripId];
+      renderTripHeader();
+      showToast('הטיול עודכן ✓');
+    } else {
+      const id = isLocal ? 'local-' + Date.now() : null;
+      if (!isLocal) {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        const ref = await tripsRef().add(data);
+        trips[ref.id] = { id: ref.id, ...data };
+      } else {
+        trips[id] = { id, ...data, createdAt: Date.now() };
+      }
+      showToast('הטיול נוצר ✓');
+    }
+    closeModal('tripModal');
+    renderTripList();
+  } catch(e) {
+    showModalError('tripModalError', 'שגיאה בשמירה: ' + e.message);
+  }
+}
+
+function openTrip(tripId) {
+  currentTrip = trips[tripId];
+  renderTripHeader();
+  document.getElementById('tripListView').style.display    = 'none';
+  document.getElementById('tripDetailView').style.display  = '';
+  showAppendix('a');
+}
+
+function renderTripHeader() {
+  const t = currentTrip;
+  document.getElementById('detailTripName').textContent  = t.name || '';
+  document.getElementById('detailSchool').textContent    = t.school || '—';
+  document.getElementById('detailDates').textContent     =
+    (t.fromDate && t.toDate) ? `${formatDate(t.fromDate)} – ${formatDate(t.toDate)}` : '—';
+  document.getElementById('detailArea').textContent      = t.area || '—';
+  document.getElementById('detailLeader').textContent    = t.leaderName || '—';
+  document.getElementById('detailClasses').textContent   = t.classes || '—';
+}
+
+function showTripList() {
+  currentTrip = null;
+  document.getElementById('tripListView').style.display   = '';
+  document.getElementById('tripDetailView').style.display = 'none';
+}
+
+// ─── Appendix navigation ──────────────────────────────────────────────────────
+function showAppendix(id) {
+  document.querySelectorAll('.appendix-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.appendix-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + id)?.classList.add('active');
+  document.getElementById('content-' + id)?.classList.add('active');
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open');    }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function showModalError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+// Close modal on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function formatDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
