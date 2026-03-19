@@ -170,9 +170,14 @@ header h1{font-size:20px;font-weight:700}
   .modal{padding:20px}
   .trip-header-top{flex-direction:column}
 }
+@media print {
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; position: static !important; }
+}
 </style>
 </head>
 <body>
+<div id="print-area" style="display:none"></div>
 
 <!-- ════════════════════════════════════════════════════
      LOGIN SCREEN
@@ -329,6 +334,7 @@ header h1{font-size:20px;font-weight:700}
 
         <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportAppendixAPDF()">📄 ייצא PDF</button>
+          <button class="btn btn-secondary" onclick="exportAppendixAPDF(true)">🖨️ הדפס</button>
           <span id="a-status" style="font-size:13px;color:#888"></span>
         </div>
       </div>
@@ -442,6 +448,7 @@ header h1{font-size:20px;font-weight:700}
 
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportBPDF()">📄 ייצא PDF</button>
+          <button class="btn btn-secondary" onclick="exportBPDF(true)">🖨️ הדפס</button>
           <span id="b-status" style="font-size:13px;color:#888"></span>
         </div>
       </div>
@@ -482,6 +489,7 @@ header h1{font-size:20px;font-weight:700}
 
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportCPDF()">📄 ייצא PDF</button>
+          <button class="btn btn-secondary" onclick="exportCPDF(true)">🖨️ הדפס</button>
           <span id="c-status" style="font-size:13px;color:#888"></span>
         </div>
       </div>
@@ -507,6 +515,7 @@ header h1{font-size:20px;font-weight:700}
 
         <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportDPDF()">📄 ייצא PDF</button>
+          <button class="btn btn-secondary" onclick="exportDPDF(true)">🖨️ הדפס</button>
           <span id="d-status" style="font-size:13px;color:#888"></span>
         </div>
       </div>
@@ -553,6 +562,7 @@ header h1{font-size:20px;font-weight:700}
           </div>
           <button class="btn btn-secondary" style="font-size:13px" onclick="document.getElementById('g-file-input').click()">🔄 החלף קובץ</button>
           <button class="btn btn-secondary" style="font-size:13px" onclick="exportGPDF()">📄 ייצא PDF</button>
+          <button class="btn btn-secondary" style="font-size:13px" onclick="exportGPDF(true)">🖨️ הדפס</button>
         </div>
 
         <!-- Table -->
@@ -1128,7 +1138,7 @@ function fillAMeta() {
   if (l) l.value = currentTrip.leaderName || '';
 }
 
-async function exportAppendixAPDF() {
+async function exportAppendixAPDF(printMode = false) {
   if (!currentTrip) return;
   const pdfEl = document.getElementById('pdf-appendix-a');
 
@@ -1177,6 +1187,7 @@ async function exportAppendixAPDF() {
     <div style="font-size:8px;color:#888;margin-top:5px">עותק של טופס זה יועבר חתום בבוקר הטיול ע"י אחראי/ת הטיול למנהל/ת ביה"ס</div>
   </div>`;
 
+  if (printMode) { doPrint(pdfEl.innerHTML); return; }
   pdfEl.style.display = 'block';
   try {
     const { jsPDF } = window.jspdf;
@@ -1309,7 +1320,7 @@ async function saveAppendixB() {
   } catch(e) { setStatus('b-status', 'שגיאה'); console.error(e); }
 }
 
-async function exportBPDF() {
+async function exportBPDF(printMode = false) {
   if (!currentTrip) return;
   const t = currentTrip;
   const pdfEl = document.getElementById('pdf-appendix-b');
@@ -1379,6 +1390,7 @@ async function exportBPDF() {
     </div>
   </div>`;
 
+  if (printMode) { doPrint(pdfEl.innerHTML); return; }
   pdfEl.style.display = 'block';
   try {
     const { jsPDF } = window.jspdf;
@@ -1502,7 +1514,7 @@ async function refreshCSig() {
   } catch(e) { console.error(e); }
 }
 
-async function exportCPDF() {
+async function exportCPDF(printMode = false) {
   if (!currentTrip) return;
   const t = currentTrip;
   const pdfEl = document.getElementById('pdf-appendix-c');
@@ -1531,6 +1543,7 @@ async function exportCPDF() {
     </div>
   </div>`;
 
+  if (printMode) { doPrint(pdfEl.innerHTML); return; }
   pdfEl.style.display = 'block';
   setStatus('c-status', 'מייצא...');
   try {
@@ -1600,7 +1613,7 @@ async function saveAppendixD() {
   } catch(e) { setStatus('d-status', 'שגיאה'); console.error(e); }
 }
 
-async function exportDPDF() {
+async function exportDPDF(printMode = false) {
   if (!currentTrip) return;
   const t = currentTrip;
   const pdfEl = document.getElementById('pdf-appendix-d');
@@ -1640,6 +1653,7 @@ async function exportDPDF() {
     </div>
   </div>`;
 
+  if (printMode) { doPrint(pdfEl.innerHTML); return; }
   pdfEl.style.display = 'block';
   setStatus('d-status', 'מייצא...');
   try {
@@ -1756,7 +1770,7 @@ async function saveAppendixG() {
   } catch(e) { setStatus('g-status', 'שגיאה'); console.error(e); }
 }
 
-async function exportGPDF() {
+async function exportGPDF(printMode = false) {
   if (!currentTrip || gStudents.length === 0) return;
   const t = currentTrip;
   const rows = sortedStudents();
@@ -1810,6 +1824,7 @@ async function exportGPDF() {
     </table>
   </div>`;
 
+  if (printMode) { doPrint(pdfEl.innerHTML); return; }
   pdfEl.style.display = 'block';
   setStatus('g-status', 'מייצא...');
   try {
@@ -1860,6 +1875,14 @@ async function exportGPDF() {
     pdf.save(`נספח ז – רשימת תלמידים – ${t.name}.pdf`);
     setStatus('g-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── Print (shared) ──────────────────────────────────────────────────────────
+function doPrint(html) {
+  const area = document.getElementById('print-area');
+  area.innerHTML = html;
+  window.print();
+  area.innerHTML = '';
 }
 
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
