@@ -732,7 +732,7 @@ header h1{font-size:20px;font-weight:700}
         <div class="form-row">
           <div class="form-group"><label>תאריך</label><input type="text" class="form-control" id="masa-date" placeholder="DD.MM.YY" oninput="scheduleMasa()"></div>
           <div class="form-group"><label>אל תחום של"ח – מחוז</label><input type="text" class="form-control" id="masa-district" oninput="scheduleMasa()"></div>
-          <div class="form-group"><label>מאת (מנהל/ת ביה"ס)</label><input type="text" class="form-control" id="masa-principal" oninput="scheduleMasa()"></div>
+          <div class="form-group"><label>מאת (שם בית הספר)</label><input type="text" class="form-control" id="masa-principal" oninput="scheduleMasa()"></div>
         </div>
 
         <!-- כללי -->
@@ -3301,7 +3301,7 @@ function buildMasaPrintHtml() {
     <tr>
       ${cell('תאריך', d.date, '15%')}
       ${cell('אל: תחום של"ח – מחוז', d.district, '40%')}
-      ${cell('מאת (מנהל/ת ביה"ס)', d.principal)}
+      ${cell('מאת (שם בית הספר)', d.principal)}
     </tr>
   </table>
   <!-- כללי -->
