@@ -488,7 +488,25 @@ header h1{font-size:20px;font-weight:700}
       <div class="appendix-content" id="content-d">
         <div class="appendix-title">נספח ד׳ – תוכנית הטיול – לוח זמנים</div>
         <div class="appendix-subtitle">פירוט ימי ושעות הפעילות</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+
+        <div style="overflow-x:auto">
+          <table class="sched-table" id="d-table">
+            <thead><tr>
+              <th style="width:110px">יום הטיול</th>
+              <th style="width:90px">שעה</th>
+              <th>הפעולה והמקום</th>
+              <th style="width:150px">הערות</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="d-table-body"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;font-size:13px" onclick="addDRow()">+ הוסף שורה</button>
+
+        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportDPDF()">📄 ייצא PDF</button>
+          <span id="d-status" style="font-size:13px;color:#888"></span>
+        </div>
       </div>
 
       <!-- ══ Appendix ה ══ -->
@@ -663,6 +681,7 @@ header h1{font-size:20px;font-weight:700}
 <div id="pdf-appendix-a" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-b" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-c" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+<div id="pdf-appendix-d" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 
 
 <script>
@@ -929,6 +948,7 @@ function showAppendix(id) {
   if (id === 'a') loadAppendixA();
   if (id === 'b') loadAppendixB();
   if (id === 'c') loadAppendixC();
+  if (id === 'd') loadAppendixD();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -1479,6 +1499,102 @@ async function exportCPDF() {
     pdf.save(`נספח ג – כתב מינוי – ${t.name}.pdf`);
     setStatus('c-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('c-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── Appendix ד — לוח זמנים ───────────────────────────────────────────────────
+let dRows = [];
+
+function addDRow(data) {
+  dRows.push({ day: data?.day||'', time: data?.time||'', activity: data?.activity||'', notes: data?.notes||'' });
+  renderDTable();
+}
+function deleteDRow(i) { dRows.splice(i, 1); renderDTable(); scheduleSaveD(); }
+
+function renderDTable() {
+  const body = document.getElementById('d-table-body');
+  if (!body) return;
+  body.innerHTML = dRows.map((r, i) => `<tr>
+    <td><input type="text" value="${esc(r.day||'')}"      placeholder="יום א׳ / 12/5"    oninput="dRows[${i}].day=this.value;scheduleSaveD()"></td>
+    <td><input type="text" value="${esc(r.time||'')}"     placeholder="08:00"             oninput="dRows[${i}].time=this.value;scheduleSaveD()"></td>
+    <td><input type="text" value="${esc(r.activity||'')}" placeholder="תיאור הפעולה והמקום" oninput="dRows[${i}].activity=this.value;scheduleSaveD()"></td>
+    <td><input type="text" value="${esc(r.notes||'')}"    placeholder="הערות"             oninput="dRows[${i}].notes=this.value;scheduleSaveD()"></td>
+    <td><button class="btn-del-row" onclick="deleteDRow(${i})">✕</button></td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:#aaa;padding:12px;font-size:13px">אין שורות — לחץ "+ הוסף שורה"</td></tr>';
+}
+
+let _dSaveTimer = null;
+function scheduleSaveD() { clearTimeout(_dSaveTimer); _dSaveTimer = setTimeout(saveAppendixD, 800); }
+
+async function loadAppendixD() {
+  dRows = [];
+  if (!currentTrip || isLocal) { renderDTable(); return; }
+  try {
+    const doc = await formRef(currentTrip.id, 'appendix_d').get();
+    if (doc.exists) dRows = doc.data().rows || [];
+  } catch(e) { console.error(e); }
+  renderDTable();
+  setStatus('d-status', '');
+}
+
+async function saveAppendixD() {
+  if (!currentTrip || isLocal) { setStatus('d-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_d').set({ rows: dRows, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('d-status', 'נשמר ✓');
+  } catch(e) { setStatus('d-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportDPDF() {
+  if (!currentTrip) return;
+  const t = currentTrip;
+  const pdfEl = document.getElementById('pdf-appendix-d');
+  const tableRows = dRows.map(r => `<tr>
+    <td style="padding:4px 6px;border:1px solid #ccc;font-size:9.5px">${esc(r.day||'')}</td>
+    <td style="padding:4px 6px;border:1px solid #ccc;font-size:9.5px;text-align:center">${esc(r.time||'')}</td>
+    <td style="padding:4px 6px;border:1px solid #ccc;font-size:9.5px">${esc(r.activity||'')}</td>
+    <td style="padding:4px 6px;border:1px solid #ccc;font-size:9.5px">${esc(r.notes||'')}</td>
+  </tr>`).join('') || `<tr><td colspan="4" style="padding:8px;border:1px solid #ccc;color:#aaa;text-align:center;font-size:9px">—</td></tr>`;
+
+  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:20px 28px;font-size:10px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:14px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:4px">נספח ד׳ — לוח זמנים</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:8px">
+      <tr>
+        <td style="padding:3px 6px;border:1px solid #ddd;width:33%"><strong>שם הטיול:</strong> ${esc(t.name||'')}</td>
+        <td style="padding:3px 6px;border:1px solid #ddd;width:33%"><strong>תאריכים:</strong> ${t.fromDate?formatDate(t.fromDate):''} – ${t.toDate?formatDate(t.toDate):''}</td>
+        <td style="padding:3px 6px;border:1px solid #ddd"><strong>כיתות:</strong> ${esc(t.classes||'')}</td>
+      </tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#1b4332;color:white">
+        <th style="padding:5px 6px;border:1px solid #999;font-size:9.5px;width:100px;text-align:right">יום הטיול</th>
+        <th style="padding:5px 6px;border:1px solid #999;font-size:9.5px;width:70px;text-align:right">שעה</th>
+        <th style="padding:5px 6px;border:1px solid #999;font-size:9.5px;text-align:right">הפעולה והמקום</th>
+        <th style="padding:5px 6px;border:1px solid #999;font-size:9.5px;width:130px;text-align:right">הערות</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div style="margin-top:30px;display:flex;justify-content:flex-start;gap:60px;font-size:9.5px">
+      <div style="text-align:center">
+        <div style="width:160px;border-bottom:1px solid #333;margin-bottom:3px"></div>
+        <div>אחראי/ת הטיול — ${esc(t.leaderName||'')}</div>
+      </div>
+    </div>
+  </div>`;
+
+  pdfEl.style.display = 'block';
+  setStatus('d-status', 'מייצא...');
+  try {
+    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#ffffff' });
+    pdfEl.style.display = 'none';
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+    pdf.save(`נספח ד – לוח זמנים – ${t.name}.pdf`);
+    setStatus('d-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; setStatus('d-status', 'שגיאה בייצוא'); console.error(e); }
 }
 
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
