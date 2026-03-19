@@ -625,8 +625,60 @@ header h1{font-size:20px;font-weight:700}
       <!-- ══ Appendix ח ══ -->
       <div class="appendix-content" id="content-h">
         <div class="appendix-title">נספח ח׳ – אישור הורים</div>
-        <div class="appendix-subtitle">העלאת טופס ספציפי לטיול</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+        <div class="appendix-subtitle">הדבק טקסט, קישור לגוגל דוק / דרייב, או העלה קובץ</div>
+
+        <!-- Mode tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:20px">
+          <button id="h-tab-text" onclick="setHMode('text')" class="btn btn-secondary">📝 טקסט</button>
+          <button id="h-tab-url"  onclick="setHMode('url')"  class="btn btn-secondary">🔗 קישור</button>
+          <button id="h-tab-file" onclick="setHMode('file')" class="btn btn-secondary">📎 קובץ</button>
+        </div>
+
+        <!-- Text mode -->
+        <div id="h-text-area">
+          <textarea id="h-text" class="form-control"
+            style="min-height:280px;font-size:13px;direction:rtl;line-height:1.7"
+            placeholder="הדבק כאן את תוכן אישור ההורים..."
+            oninput="scheduleH()"></textarea>
+        </div>
+
+        <!-- URL mode -->
+        <div id="h-url-area" style="display:none">
+          <div class="form-group">
+            <label>קישור לאישור</label>
+            <input type="url" id="h-url" class="form-control"
+              placeholder="https://docs.google.com/..." oninput="scheduleH()" style="direction:ltr">
+          </div>
+          <button class="btn btn-secondary" style="margin-top:8px" onclick="openHUrl()">↗ פתח קישור</button>
+        </div>
+
+        <!-- File mode -->
+        <div id="h-file-area" style="display:none">
+          <div id="h-upload-zone"
+            style="border:2px dashed #bbb;border-radius:10px;padding:32px;text-align:center;cursor:pointer;background:#fafffe"
+            onclick="document.getElementById('h-file-input').click()">
+            <div style="font-size:32px;margin-bottom:8px">📎</div>
+            <div style="font-size:14px;color:#555">לחץ/י לבחירת קובץ</div>
+            <div style="font-size:11px;color:#aaa;margin-top:4px">PDF, Word, או כל קובץ (עד ~700KB)</div>
+            <input type="file" id="h-file-input" accept=".pdf,.doc,.docx,.txt,.png,.jpg"
+              style="display:none" onchange="handleHFile(this)">
+          </div>
+          <div id="h-file-info" style="display:none;margin-top:12px;padding:12px;background:#f0f9f4;border-radius:8px;border:1px solid #c8e6c9">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:28px">📄</span>
+              <div>
+                <div id="h-file-name" style="font-size:14px;font-weight:bold;color:#1b4332"></div>
+                <div id="h-file-size" style="font-size:12px;color:#666"></div>
+              </div>
+              <button onclick="clearHFile()" style="margin-right:auto;background:none;border:none;color:#e57373;cursor:pointer;font-size:20px;line-height:1">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="printAppendixH()">🖨️ הדפס / פתח</button>
+          <span id="h-status" style="font-size:13px;color:#888"></span>
+        </div>
       </div>
 
       <!-- ══ Appendix ט ══ -->
@@ -1047,6 +1099,7 @@ function showAppendix(id) {
   if (id === 'e') loadAppendixE();
   if (id === 'f') loadAppendixF();
   if (id === 'g') loadAppendixG();
+  if (id === 'h') loadAppendixH();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -2326,6 +2379,130 @@ async function exportGPDF(printMode = false) {
     pdf.save(`נספח ז – רשימת תלמידים – ${t.name}.pdf`);
     setStatus('g-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── Appendix ח — אישור הורים ─────────────────────────────────────────────────
+let hMode     = 'text';
+let hText     = '';
+let hUrl      = '';
+let hFileData = null; // base64 data URL
+let hFileName = '';
+let hFileType = '';
+let hSaveTimer = null;
+
+function setHMode(mode) {
+  hMode = mode;
+  ['text','url','file'].forEach(m => {
+    document.getElementById('h-' + m + '-area').style.display = m === mode ? '' : 'none';
+    const btn = document.getElementById('h-tab-' + m);
+    if (btn) { btn.classList.toggle('btn-primary', m === mode); btn.classList.toggle('btn-secondary', m !== mode); }
+  });
+}
+
+function handleHFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 700 * 1024) {
+    setStatus('h-status', 'הקובץ גדול מדי (מעל 700KB). נסה/י להעלות קישור במקום.');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    hFileData = e.target.result;
+    hFileName = file.name;
+    hFileType = file.type;
+    document.getElementById('h-upload-zone').style.display = 'none';
+    document.getElementById('h-file-info').style.display = '';
+    document.getElementById('h-file-name').textContent = hFileName;
+    document.getElementById('h-file-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    setStatus('h-status', '');
+    scheduleH();
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearHFile() {
+  hFileData = null; hFileName = ''; hFileType = '';
+  document.getElementById('h-upload-zone').style.display = '';
+  document.getElementById('h-file-info').style.display = 'none';
+  document.getElementById('h-file-input').value = '';
+  scheduleH();
+}
+
+function openHUrl() {
+  const url = document.getElementById('h-url').value.trim();
+  if (url) window.open(url, '_blank');
+}
+
+function printAppendixH() {
+  if (hMode === 'text') {
+    const txt = document.getElementById('h-text').value;
+    if (!txt.trim()) { setStatus('h-status', 'אין תוכן להדפסה'); return; }
+    const html = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:30px 40px;font-size:13px;line-height:1.8;white-space:pre-wrap">${esc(txt)}</div>`;
+    doPrint(html);
+  } else if (hMode === 'url') {
+    const url = document.getElementById('h-url').value.trim();
+    if (!url) { setStatus('h-status', 'לא הוזן קישור'); return; }
+    window.open(url, '_blank');
+  } else if (hMode === 'file') {
+    if (!hFileData) { setStatus('h-status', 'לא הועלה קובץ'); return; }
+    window.open(hFileData, '_blank');
+  }
+}
+
+function scheduleH() {
+  // read current values into state
+  if (hMode === 'text') hText = document.getElementById('h-text').value;
+  if (hMode === 'url')  hUrl  = document.getElementById('h-url').value;
+  clearTimeout(hSaveTimer);
+  hSaveTimer = setTimeout(saveAppendixH, 1200);
+}
+
+async function saveAppendixH() {
+  if (!currentTrip || isLocal) { setStatus('h-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_h').set({
+      mode: hMode, text: hText, url: hUrl,
+      fileData: hFileData, fileName: hFileName, fileType: hFileType,
+      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setStatus('h-status', 'נשמר ✓');
+  } catch(e) { setStatus('h-status', 'שגיאה'); console.error(e); }
+}
+
+async function loadAppendixH() {
+  hMode = 'text'; hText = ''; hUrl = ''; hFileData = null; hFileName = ''; hFileType = '';
+  if (!currentTrip || isLocal) { renderAppendixH(); return; }
+  try {
+    const doc = await formRef(currentTrip.id, 'appendix_h').get();
+    if (doc.exists) {
+      const d = doc.data();
+      hMode     = d.mode     || 'text';
+      hText     = d.text     || '';
+      hUrl      = d.url      || '';
+      hFileData = d.fileData || null;
+      hFileName = d.fileName || '';
+      hFileType = d.fileType || '';
+    }
+  } catch(e) { console.error(e); }
+  renderAppendixH();
+}
+
+function renderAppendixH() {
+  document.getElementById('h-text').value = hText;
+  document.getElementById('h-url').value  = hUrl;
+  setHMode(hMode);
+  if (hFileData) {
+    document.getElementById('h-upload-zone').style.display = 'none';
+    document.getElementById('h-file-info').style.display = '';
+    document.getElementById('h-file-name').textContent = hFileName;
+    document.getElementById('h-file-size').textContent = hFileData ? Math.round(hFileData.length * 0.75 / 1024) + ' KB (בערך)' : '';
+  } else {
+    document.getElementById('h-upload-zone').style.display = '';
+    document.getElementById('h-file-info').style.display = 'none';
+  }
+  setStatus('h-status', '');
 }
 
 // ─── Print (shared) ──────────────────────────────────────────────────────────
