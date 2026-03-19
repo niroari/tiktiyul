@@ -663,6 +663,7 @@ if (signDocId) {
   // Public sign page — no login needed
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('signPage').style.display    = 'flex';
+  document.getElementById('canvas-debug').textContent  = 'BOOT OK — calling loadSignPage';
   loadSignPage(signDocId);
 } else if (isLocal) {
   // Skip login in local preview
@@ -1515,7 +1516,14 @@ let signCurrentDocId = null;
 
 async function loadSignPage(docId) {
   signCurrentDocId = docId;
-  setupCanvas(document.getElementById('sign-canvas'), null);
+  document.getElementById('canvas-debug').textContent = 'loadSignPage נקרא';
+  try {
+    const c = document.getElementById('sign-canvas');
+    document.getElementById('canvas-debug').textContent = 'canvas el: ' + (c ? 'נמצא' : 'NULL!');
+    setupCanvas(c, null);
+  } catch(err) {
+    document.getElementById('canvas-debug').textContent = 'שגיאה: ' + err.message;
+  }
   try {
     const doc = await db.collection('tiyul_signatures').doc(docId).get();
     if (!doc.exists) {
