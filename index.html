@@ -1961,83 +1961,101 @@ async function exportFPDF(printMode = false) {
   const t = currentTrip;
   const pdfEl = document.getElementById('pdf-appendix-f');
 
-  const busBlocks = fBuses.length ? fBuses.map((bus, bi) => {
-    const total = (parseInt(bus.students)||0) + (parseInt(bus.escorts)||0);
-    return `<div style="margin-bottom:10px">
-      <div style="background:#1b4332;color:white;padding:4px 8px;font-size:10px;font-weight:bold;display:flex;gap:16px">
-        <span>אוטובוס ${bi+1}</span>
-        ${bus.classes ? `<span>כיתות: ${esc(bus.classes)}</span>` : ''}
-        ${bus.students ? `<span>תלמידים: ${esc(bus.students)}</span>` : ''}
-        ${bus.escorts  ? `<span>מלווים: ${esc(bus.escorts)}</span>` : ''}
-        ${total ? `<span>סה"כ: ${total}</span>` : ''}
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#2d6a4f;color:white">
-          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right;width:130px">תפקיד</th>
-          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right">שם</th>
-          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right;width:120px">טלפון</th>
-        </tr></thead>
-        <tbody>${bus.crew.map((cr, ri) => `<tr style="${ri%2===0?'':'background:#f5faf7'}">
-          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(cr.role)}</td>
-          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(cr.name)}</td>
-          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;direction:ltr">${esc(cr.phone)}</td>
-        </tr>`).join('')}</tbody>
-      </table>
-    </div>`;
-  }).join('') : '<div style="color:#aaa;font-size:9px;padding:6px">לא הוזנו אוטובוסים</div>';
+  const n = fBuses.length;
+  const td  = (content, extra='') => `<td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;text-align:center${extra}">${content}</td>`;
+  const tdL = (content, extra='') => `<td style="padding:4px 6px;border:1px solid #ccc;font-size:9px${extra}">${content}</td>`;
 
-  const classTableRows = fClassRows.map(r => `<tr>
-    <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(r.className)}</td>
-    <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${esc(r.planned)}</td>
-    <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${esc(r.actual)}</td>
-  </tr>`).join('') || '<tr><td colspan="3" style="padding:6px;border:1px solid #ddd;color:#aaa;text-align:center;font-size:9px">—</td></tr>';
+  // Header row: label col + one col per bus
+  const busHeaders = fBuses.map((b, bi) =>
+    `<th style="padding:5px 6px;border:1px solid #999;font-size:9px;font-weight:bold;background:#1b4332;color:white;text-align:center;min-width:110px">
+      אוטובוס ${bi+1}${b.classes ? '<br><span style="font-weight:normal;font-size:8px">'+esc(b.classes)+'</span>' : ''}
+    </th>`).join('');
+
+  // One section per crew role: grey header row + שם row + טלפון row
+  const crewRows = F_CREW_ROLES.map((role, ri) => `
+    <tr style="background:#d4edda">
+      <td colspan="${n+1}" style="padding:3px 6px;border:1px solid #bbb;font-size:9px;font-weight:bold;color:#1b4332">${role}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 6px;border:1px solid #ccc;font-size:8px;color:#555;background:#f9f9f9">שם</td>
+      ${fBuses.map(b => td(esc(b.crew[ri]?.name||''))).join('')}
+    </tr>
+    <tr>
+      <td style="padding:3px 6px;border:1px solid #ccc;font-size:8px;color:#555;background:#f9f9f9">טלפון</td>
+      ${fBuses.map(b => td(esc(b.crew[ri]?.phone||''), ';direction:ltr')).join('')}
+    </tr>`).join('');
 
   const totalStudents = fBuses.reduce((s, b) => s + (parseInt(b.students)||0), 0);
   const totalEscorts  = fBuses.reduce((s, b) => s + (parseInt(b.escorts)||0), 0);
 
-  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:20px 24px;font-size:10px;background:white">
-    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:14px">
-      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
-      <div style="font-size:15px;font-weight:bold;margin-top:4px">נספח ו׳ — טבלת שליטה בטיול</div>
-      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')}</div>
+  // Bottom summary (right-aligned small table)
+  const summaryRows = [
+    ['תלמידים',                   totalStudents || ''],
+    ['מורים + מלווים + הורים',   totalEscorts  || ''],
+    ['מאבטחים וחובשים',          fBuses.filter(b => b.crew[3]?.name).length || ''],
+    ['מדריכים',                   fBuses.filter(b => b.crew[4]?.name).length || ''],
+    ['סה"כ נוכחים',              totalStudents + totalEscorts || ''],
+  ].map((r, i) => `<tr style="${i===4?'font-weight:bold;background:#d4edda':''}">
+    <td style="padding:3px 8px;border:1px solid #ccc;font-size:9px">${r[0]}</td>
+    <td style="padding:3px 8px;border:1px solid #ccc;font-size:9px;text-align:center;width:60px">${r[1]}</td>
+  </tr>`).join('');
+
+  pdfEl.innerHTML = `<div style="font-family:'Arial',sans-serif;direction:rtl;padding:14px 18px;font-size:9px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:6px;margin-bottom:10px">
+      <div style="font-size:7px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:3px">נספח ו׳ — טבלת שליטה בטיול</div>
+      <div style="font-size:8px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')}</div>
     </div>
 
-    <div style="font-weight:bold;font-size:10px;margin-bottom:8px;color:#1b4332">צוות האוטובוסים</div>
-    ${busBlocks}
-
-    <div style="font-weight:bold;font-size:10px;margin:14px 0 6px;color:#1b4332">סיכום לפי כיתה</div>
-    <table style="width:60%;border-collapse:collapse;margin-bottom:12px">
-      <thead><tr style="background:#1b4332;color:white">
-        <th style="padding:4px 6px;border:1px solid #999;font-size:9px">כיתה</th>
-        <th style="padding:4px 6px;border:1px solid #999;font-size:9px;width:100px">מתוכנן</th>
-        <th style="padding:4px 6px;border:1px solid #999;font-size:9px;width:100px">בפועל</th>
-      </tr></thead>
-      <tbody>${classTableRows}</tbody>
-    </table>
-
-    <table style="width:60%;border-collapse:collapse">
-      <thead><tr style="background:#2d6a4f;color:white">
-        <th style="padding:4px 6px;border:1px solid #999;font-size:9px">קטגוריה</th>
-        <th style="padding:4px 6px;border:1px solid #999;font-size:9px;width:100px">מספר</th>
+    ${n === 0 ? '<div style="color:#aaa;font-size:9px">לא הוזנו אוטובוסים</div>' : `
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+      <thead><tr>
+        <th style="padding:5px 6px;border:1px solid #999;font-size:9px;background:#1b4332;color:white;min-width:90px"></th>
+        ${busHeaders}
       </tr></thead>
       <tbody>
-        <tr><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">תלמידים</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${totalStudents||''}</td></tr>
-        <tr style="background:#f5faf7"><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">מלווים (מורים/הורים)</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${totalEscorts||''}</td></tr>
-        <tr><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;font-weight:bold">סה"כ</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center;font-weight:bold">${totalStudents + totalEscorts || ''}</td></tr>
+        <tr style="background:#e8f5e9">
+          <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;font-weight:bold">כיתות</td>
+          ${fBuses.map(b => td(esc(b.classes||''))).join('')}
+        </tr>
+        ${crewRows}
+        <tr style="background:#e8f5e9">
+          <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;font-weight:bold">מספר תלמידים</td>
+          ${fBuses.map(b => td(`<strong>${esc(b.students||'')}</strong>`)).join('')}
+        </tr>
+        <tr>
+          <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;font-weight:bold">מספר מלווים</td>
+          ${fBuses.map(b => td(esc(b.escorts||''))).join('')}
+        </tr>
+        <tr style="background:#d4edda;font-weight:bold">
+          <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px">סה"כ באוטובוס</td>
+          ${fBuses.map(b => td(`<strong>${(parseInt(b.students)||0)+(parseInt(b.escorts)||0)||''}</strong>`)).join('')}
+        </tr>
       </tbody>
+    </table>`}
+
+    <table style="border-collapse:collapse">
+      <thead><tr style="background:#1b4332;color:white">
+        <th style="padding:4px 8px;border:1px solid #999;font-size:9px">קטגוריה</th>
+        <th style="padding:4px 8px;border:1px solid #999;font-size:9px;width:60px">מספר</th>
+      </tr></thead>
+      <tbody>${summaryRows}</tbody>
     </table>
   </div>`;
 
   if (printMode) { doPrint(pdfEl.innerHTML); return; }
+  // Use landscape — table is wide
+  pdfEl.style.width = '1122px'; // A4 landscape width at 96dpi
   pdfEl.style.display = 'block';
   setStatus('f-status', 'מייצא...');
   try {
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p','mm','a4');
-    const margin = 8, pageW = 210, pageH = 297;
+    const pdf = new jsPDF('l','mm','a4'); // landscape
+    const margin = 8, pageW = 297, pageH = 210;
     const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
     const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
     pdfEl.style.display = 'none';
+    pdfEl.style.width = '794px'; // restore
     const imgW = contentW, imgH = canvas.height * imgW / canvas.width;
     let yOff = 0, page = 0;
     while (yOff < imgH) {
@@ -2052,7 +2070,7 @@ async function exportFPDF(printMode = false) {
     }
     pdf.save(`נספח ו – טבלת שליטה – ${t.name}.pdf`);
     setStatus('f-status', 'PDF יוצא בהצלחה ✓');
-  } catch(e) { pdfEl.style.display = 'none'; setStatus('f-status', 'שגיאה בייצוא'); console.error(e); }
+  } catch(e) { pdfEl.style.display = 'none'; pdfEl.style.width = '794px'; setStatus('f-status', 'שגיאה בייצוא'); console.error(e); }
 }
 
 // ─── Appendix ז — רשימת תלמידים ──────────────────────────────────────────────
