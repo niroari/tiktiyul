@@ -34,26 +34,31 @@ users/{uid}/trips/{tripId}          — trip metadata
   createdAt
 
 users/{uid}/trips/{tripId}/forms/{formId}   — per-appendix data
-  formId = appendix_a, appendix_b, ... appendix_j, masa
+  formId = appendix_a, appendix_b, ... appendix_j, masa, team
+
+tiyul_signatures/{uid}_{tripId}_{role}     — remote signing docs (public read)
+  role = coordinator | principal | c_principal | masa_principal
 ```
 
 ---
 
-## Appendices — Build Status
+## Sections — Build Status
 
 | ID | Label | Content | Status |
 |----|-------|---------|--------|
+| dashboard | דשבורד | Stats cards + trip info + appendix completion + class breakdown + medical list | ✅ done |
 | א (a) | ביקורת לפני יציאה | Checklist: ~20 rows, each with "week before" + "morning of trip" checkboxes + notes | ✅ done |
 | ב (b) | אישור מנהל ורכז | Schedule table + notes + signatures (principal + coordinator) | ✅ done |
 | ג (c) | כתב מינוי | Simple appointment letter — classes, dates, area, principal signature | ✅ done |
 | ד (d) | לוח זמנים | Dynamic table: day / time / activity+place / notes | ✅ done |
 | ה (e) | טלפונים חיוניים | Two parts: essential contacts (fixed rows) + bus crew table (dynamic, per bus) | ✅ done |
-| ו (f) | טבלת שליטה | Bus control table: classes, teacher, driver, security, guide, counts | pending |
-| ז (g) | רשימת תלמידים | Excel import, display by class | ✅ done |
-| ח (h) | אישור הורים | Upload a PDF specific to each trip (not a built form) | pending |
-| ט (i) | ציוד חובה | Static checklist + option to add custom items | pending |
-| י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes | pending |
-| הודעת מסע (masa) | הודעת מסע של"ח | 2-page form: general info + schedule table + role holders | pending |
+| team | צוות הטיול | Table of staff: name / role / phone. Autocomplete feeds into נספח ו מורה fields | ✅ done |
+| ו (f) | טבלת שליטה | Bus control table: classes, teacher, driver, security, guide, counts | ✅ done |
+| ז (g) | רשימת תלמידים | Excel import (with gender), display by class with going/not-going toggle | ✅ done |
+| ח (h) | אישור הורים | Upload a PDF specific to each trip (not a built form) | ✅ done |
+| ט (i) | ציוד חובה | Static checklist + option to add custom items | ✅ done |
+| י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes | ✅ done |
+| הודעת מסע (masa) | הודעת מסע של"ח | 2-page form: general info + schedule table + role holders + signatures | ✅ done |
 
 ---
 
@@ -100,7 +105,11 @@ Bottom summary table: כיתה | מס' תלמידים (מתוכנן / בפועל
 Then: count rows: תלמידים / מורים+מלווים+הורים / מאבטחים וחובשים / מדריכים / סה"כ נוכחים
 
 ### נספח ז – רשימת תלמידים
-CSV import, display grouped by class, print-ready list
+Excel import (SheetJS). Supports two formats:
+- New: [מספר, ת.ז, שם משפחה, שם פרטי, כיתה, מקבילה, מין(נ/ז), טלפון] — auto-detected when col1 is a 9-digit ID
+- Old: [ת.ז, שם משפחה, שם פרטי, כיתה, מקבילה, טלפון]
+Stores: id, last, first, class (`כיתה׳מקבילה`), gender (נ/ז), phone, going (bool)
+Display: grouped by class, going/not-going toggle per student, gender badge (זכר/נקבה)
 
 ### נספח ח – אישור הורים
 User uploads their own PDF per trip (not a built form)
@@ -116,7 +125,7 @@ Pulls from student list (appendix ז) — user selects students and fills in med
 
 ### הודעת מסע של"ח (separate file: הודעת מסע.pdf) — 2 pages
 Page 1:
-  Header: תאריך, אל: תחום של"ח, מאת: מנהל/ת ביה"ס
+  Header: תאריך, אל: תחום של"ח, מאת: שם בית הספר
   כללי section: תאריכי מסע (from–to), מס' תלמידים, מקום התארגנות,
     מקום פיזור (radio: בביה"ס / בתוך היישוב / פיזור למושבים / אחר),
     שם אחראי, חברת הדרכה + מדריכים
@@ -128,6 +137,7 @@ Page 2:
   אלטרנטיבות (freetext)
   Role holders table: סדר | תפקיד (אחראי/סגן/חובש/מדריך עזר x3) |
     שם פרטי ומשפחה | מס' זהות | טלפון נייד/מירס | תעודה בתוקף עד
+  Signatures: אחראי/ת (canvas, direct) + מנהל/ת ביה"ס (remote link, role=masa_principal)
 
 ---
 
@@ -136,11 +146,14 @@ Page 2:
 - Firebase Auth + Firestore — multi-user, cloud storage
 - One PDF export per appendix (not one big combined PDF)
 - נספח ח (parent permission) — user uploads their own PDF per trip, not a built form
-- Student list (נספח ז) — CSV import
+- Student list (נספח ז) — Excel import via SheetJS; supports old and new column formats
 - Medical limitations (נספח י) — pulls names from student list, user adds medical details
 - Local file:// bypass — skip login when opening from disk for preview
-- Canvas signatures — shared `setupCanvas(canvas, onEnd)` function using mouse+touch events with `getBoundingClientRect` scaling factor (ported from Shelach Reports). Works for both in-form (teacher) and remote signing.
-- Remote signing via shared link — Firestore collection `tiyul_signatures/{uid}_{tripId}_{role}`, public page at `?tiyulsign=DOCID` (no login required). Coordinator + principal sign remotely; teacher signs in-form.
-- **Gotcha (temporal dead zone):** module-level `let` variables that are used by functions called from the boot code must be declared in the `// ─── State ───` section BEFORE the boot code. If declared later in the file, JavaScript silently crashes async functions that reference them — no visible error.
-- **Print buttons:** every appendix export function takes `printMode = false`. When `true`, it calls `doPrint(pdfEl.innerHTML)` instead of html2canvas. `doPrint(html)` puts the HTML in `#print-area` and calls `window.print()`. `@media print` CSS hides everything except `#print-area`. All future appendices must follow this same pattern.
-- **Appendix ז PDF page breaks:** multiple approaches tried (getBoundingClientRect row detection, domToCanvas ratio). All failed to reliably avoid cutting rows between pages. Decision: skip PDF export for ז; the print button works correctly since the browser handles page breaks natively.
+- Canvas signatures — shared `setupCanvas(canvas, onEnd)` function using mouse+touch events with `getBoundingClientRect` scaling factor. Works for both in-form and remote signing.
+- Remote signing via shared link — Firestore collection `tiyul_signatures/{uid}_{tripId}_{role}`, public page at `?tiyulsign=DOCID` (no login required). Used in: נספח ב (coordinator + principal), נספח ג (principal), הודעת מסע (principal = masa_principal).
+- **הודעת מסע PDF approach:** original PDF pages embedded as base64 JPEG (~90KB each), text overlaid using `position:absolute` divs via `masaCell()`. Print button uses a separate clean HTML table layout (`buildMasaPrintHtml()`), not the background image overlay.
+- **צוות הטיול** (formId=`team`) — standalone section between ה and ו. Staff names feed into נספח ו מורה fields via `<datalist>` autocomplete with phone auto-fill.
+- **Dashboard** — default landing tab when opening a trip. Loads gStudents, teamMembers, fBuses, jRows and all form docs in parallel for stats + completion status.
+- **Gotcha (temporal dead zone):** module-level `let` variables used by boot-time functions must be declared in the `// ─── State ───` section BEFORE the boot code. Declaring them later causes silent async crashes.
+- **Print buttons:** every export function takes `printMode = false`. When `true`, calls `doPrint(html)` → `#print-area` + `window.print()`. All appendices follow this pattern.
+- **Appendix ז PDF page breaks:** skipped — browser handles page breaks natively via print button.
