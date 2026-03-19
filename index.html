@@ -632,6 +632,7 @@ header h1{font-size:20px;font-weight:700}
               <th>שם משפחה</th>
               <th>שם פרטי</th>
               <th style="width:70px">כיתה</th>
+              <th style="width:50px;text-align:center">מין</th>
               <th style="width:130px">טלפון</th>
               <th style="width:70px;text-align:center">יוצא?</th>
             </tr></thead>
@@ -2156,8 +2157,8 @@ function renderDashboard() {
 
   // ── Compute stats ──
   const students    = gStudents.filter(s => s.going !== false);
-  const males       = students.filter(s => (s.gender||'').includes('זכר') || (s.gender||'')==='מ').length;
-  const females     = students.filter(s => (s.gender||'').includes('נקבה') || (s.gender||'')==='נ').length;
+  const males   = students.filter(s => s.gender === 'ז').length;
+  const females = students.filter(s => s.gender === 'נ').length;
   const medCount    = jRows.length;
   const staffCount  = teamMembers.length;
   const busCount    = fBuses.length;
@@ -2209,8 +2210,8 @@ function renderDashboard() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:24px">
       ${days !== null ? statCard('📅', days, 'ימי טיול') : ''}
       ${statCard('🎒', students.length, 'תלמידים יוצאים')}
-      ${students.length ? statCard('👦', males||'—', 'בנים') : ''}
-      ${students.length ? statCard('👧', females||'—', 'בנות') : ''}
+      ${males+females > 0 ? statCard('👦', males, 'בנים') : ''}
+      ${males+females > 0 ? statCard('👧', females, 'בנות') : ''}
       ${statCard('👨‍🏫', staffCount||'—', 'אנשי צוות')}
       ${statCard('🚌', busCount||'—', 'אוטובוסים')}
       ${totalPax ? statCard('👥', totalPax, 'יוצאים בסה"כ') : ''}
@@ -2642,17 +2643,38 @@ function importGFile(input) {
       const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
       const parsed = [];
       for (const row of rows) {
-        const id = String(row[0]||'').trim();
-        if (!/^\d{7,9}$/.test(id)) continue; // skip non-ID rows
-        const grade  = String(row[3]||'').trim();
-        const kita   = String(row[4]||'').trim();
+        // Support two formats:
+        // Old: [ת.ז, שם משפחה, שם פרטי, כיתה, מקבילה, טלפון]
+        // New: [מספר, ת.ז, שם משפחה, שם פרטי, כיתה, מקבילה, מין, טלפון]
+        let id, last, first, grade, kita, gender, phone;
+        const col0 = String(row[0]||'').trim();
+        const col1 = String(row[1]||'').trim();
+        if (/^\d{7,9}$/.test(col1)) {
+          // New format: מספר in col0, ת.ז in col1
+          id = col1;
+          last   = String(row[2]||'').trim();
+          first  = String(row[3]||'').trim();
+          grade  = String(row[4]||'').trim();
+          kita   = String(row[5]||'').trim();
+          gender = String(row[6]||'').trim(); // נ / ז
+          phone  = String(row[7]||'').trim();
+        } else if (/^\d{7,9}$/.test(col0)) {
+          // Old format: ת.ז in col0
+          id = col0;
+          last   = String(row[1]||'').trim();
+          first  = String(row[2]||'').trim();
+          grade  = String(row[3]||'').trim();
+          kita   = String(row[4]||'').trim();
+          gender = '';
+          phone  = String(row[5]||'').trim();
+        } else { continue; }
         parsed.push({
           id,
-          last:    String(row[1]||'').trim(),
-          first:   String(row[2]||'').trim(),
-          class:   grade && kita ? `${grade}׳${kita}` : (grade || kita),
-          phone:   String(row[5]||'').trim(),
-          going:   true
+          last, first,
+          class:  grade && kita ? `${grade}׳${kita}` : (grade || kita),
+          gender,
+          phone,
+          going:  true
         });
       }
       gStudents = parsed;
@@ -2698,6 +2720,7 @@ function renderGTable() {
       <td style="font-size:13px">${esc(s.last)}</td>
       <td style="font-size:13px">${esc(s.first)}</td>
       <td style="font-size:13px;text-align:center">${esc(s.class)}</td>
+      <td style="font-size:13px;text-align:center">${s.gender==='נ'?'👧':s.gender==='ז'?'👦':''}</td>
       <td style="font-size:13px;direction:ltr">${esc(s.phone)}</td>
       <td style="text-align:center"><input type="checkbox" ${s.going!==false?'checked':''}
         onchange="toggleGoing('${esc(s.id)}')" style="cursor:pointer;width:16px;height:16px"></td>
