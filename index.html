@@ -539,10 +539,6 @@ header h1{font-size:20px;font-weight:700}
           </table>
         </div>
 
-        <div class="section-title" style="margin-top:24px">חלק ב׳ — צוות האוטובוסים</div>
-        <div id="e-buses-container"></div>
-        <button class="btn btn-secondary" style="margin-top:10px;font-size:13px" onclick="addEBus()">+ הוסף אוטובוס</button>
-
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportEPDF()">📄 ייצא PDF</button>
           <button class="btn btn-secondary" onclick="exportEPDF(true)">🖨️ הדפס</button>
@@ -553,8 +549,31 @@ header h1{font-size:20px;font-weight:700}
       <!-- ══ Appendix ו ══ -->
       <div class="appendix-content" id="content-f">
         <div class="appendix-title">נספח ו׳ – טבלת שליטה בטיול</div>
-        <div class="appendix-subtitle">חלוקה לאוטובוסים, מורות, נהגים, מדריכים</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+        <div class="appendix-subtitle">חלוקה לאוטובוסים, מלווים, נהגים, מדריכים</div>
+
+        <div class="section-title">אוטובוסים וצוות</div>
+        <div id="f-buses-container"></div>
+        <button class="btn btn-secondary" style="margin-top:10px;font-size:13px" onclick="addFBus()">+ הוסף אוטובוס</button>
+
+        <div class="section-title" style="margin-top:24px">סיכום לפי כיתה</div>
+        <div style="overflow-x:auto">
+          <table class="sched-table" id="f-class-table">
+            <thead><tr>
+              <th>כיתה</th>
+              <th style="width:130px">מתוכנן</th>
+              <th style="width:130px">בפועל</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="f-class-body"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;font-size:13px" onclick="addFClassRow()">+ הוסף כיתה</button>
+
+        <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportFPDF()">📄 ייצא PDF</button>
+          <button class="btn btn-secondary" onclick="exportFPDF(true)">🖨️ הדפס</button>
+          <span id="f-status" style="font-size:13px;color:#888"></span>
+        </div>
       </div>
 
       <!-- ══ Appendix ז ══ -->
@@ -757,6 +776,7 @@ header h1{font-size:20px;font-weight:700}
 <div id="pdf-appendix-c" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-d" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-e" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+<div id="pdf-appendix-f" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-g" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 
 
@@ -1026,6 +1046,7 @@ function showAppendix(id) {
   if (id === 'c') loadAppendixC();
   if (id === 'd') loadAppendixD();
   if (id === 'e') loadAppendixE();
+  if (id === 'f') loadAppendixF();
   if (id === 'g') loadAppendixG();
 }
 
@@ -1715,10 +1736,7 @@ const FIXED_E_CONTACTS = [
   { role: 'תחנת משטרה באזור',          autoName: null,            phone: '',            other: '' },
   { role: 'יחידת פיקוד טיולים',       autoName: null,            phone: '057-2258624', other: '' },
 ];
-const BUS_CREW_ROLES = ['נהג', 'מדריך/ה', 'מורה אחראי/ת', 'מורה/הורה/מלווה נוסף', 'מאבטח/מע"ר/חובש'];
-
 let eContacts = [];
-let eBuses    = [];
 
 function initEContacts() {
   eContacts = [
@@ -1750,75 +1768,26 @@ function renderEContacts() {
   </tr>`).join('');
 }
 
-function renderEBuses() {
-  const container = document.getElementById('e-buses-container');
-  if (!container) return;
-  if (eBuses.length === 0) {
-    container.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0">אין אוטובוסים — לחץ "+ הוסף אוטובוס"</div>';
-    return;
-  }
-  container.innerHTML = eBuses.map((bus, bi) => `
-    <div style="margin-bottom:16px;border:1px solid #ccc;border-radius:8px;overflow:hidden">
-      <div style="background:#1b4332;color:white;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-weight:bold;font-size:14px">אוטובוס ${bi+1}</span>
-        <label style="font-size:12px">כיתות:</label>
-        <input type="text" value="${esc(bus.classes||'')}" placeholder="ז׳1, ז׳2"
-          oninput="eBuses[${bi}].classes=this.value;scheduleE()"
-          style="width:100px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white;direction:rtl">
-        <label style="font-size:12px">תלמידים:</label>
-        <input type="number" value="${esc(bus.students||'')}" placeholder="0" min="0"
-          oninput="eBuses[${bi}].students=this.value;scheduleE()"
-          style="width:60px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white">
-        <button onclick="deleteEBus(${bi})" style="background:none;border:none;color:#ff8a80;cursor:pointer;font-size:18px;padding:0 4px;margin-right:auto">✕</button>
-      </div>
-      <table class="sched-table" style="margin:0">
-        <thead><tr>
-          <th style="background:#2d6a4f;width:160px">תפקיד</th>
-          <th style="background:#2d6a4f">שם מלווה</th>
-          <th style="background:#2d6a4f;width:150px">מס׳ טלפון</th>
-        </tr></thead>
-        <tbody>${BUS_CREW_ROLES.map((role, ri) => `<tr>
-          <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
-          <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
-            oninput="eBuses[${bi}].crew[${ri}].name=this.value;scheduleE()"></td>
-          <td><input type="text" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
-            oninput="eBuses[${bi}].crew[${ri}].phone=this.value;scheduleE()" style="direction:ltr"></td>
-        </tr>`).join('')}</tbody>
-      </table>
-    </div>`).join('');
-}
-
-function addEBus() {
-  eBuses.push({ classes:'', students:'', crew: BUS_CREW_ROLES.map(role => ({ role, name:'', phone:'' })) });
-  renderEBuses();
-}
-function deleteEBus(i) { eBuses.splice(i, 1); renderEBuses(); scheduleE(); }
 
 let _eSaveTimer = null;
 function scheduleE() { clearTimeout(_eSaveTimer); _eSaveTimer = setTimeout(saveAppendixE, 800); }
 
 async function loadAppendixE() {
   initEContacts();
-  eBuses = [];
-  if (!currentTrip || isLocal) { renderEContacts(); renderEBuses(); return; }
+  if (!currentTrip || isLocal) { renderEContacts(); return; }
   try {
     const doc = await formRef(currentTrip.id, 'appendix_e').get();
-    if (doc.exists) {
-      const data = doc.data();
-      if (data.contacts && data.contacts.length) {
-        data.contacts.forEach((c, i) => {
-          if (i >= eContacts.length) return;
-          if (c.name)  eContacts[i].name  = c.name;
-          if (c.phone) eContacts[i].phone = c.phone;
-          if (c.other !== undefined) eContacts[i].other = c.other;
-          if (!eContacts[i].fixed && c.role !== undefined) eContacts[i].role = c.role;
-        });
-      }
-      if (data.buses) eBuses = data.buses;
+    if (doc.exists && doc.data().contacts) {
+      doc.data().contacts.forEach((c, i) => {
+        if (i >= eContacts.length) return;
+        if (c.name)  eContacts[i].name  = c.name;
+        if (c.phone) eContacts[i].phone = c.phone;
+        if (c.other !== undefined) eContacts[i].other = c.other;
+        if (!eContacts[i].fixed && c.role !== undefined) eContacts[i].role = c.role;
+      });
     }
   } catch(e) { console.error(e); }
   renderEContacts();
-  renderEBuses();
   setStatus('e-status', '');
 }
 
@@ -1827,7 +1796,6 @@ async function saveAppendixE() {
   try {
     await formRef(currentTrip.id, 'appendix_e').set({
       contacts: eContacts.map(c => ({ role:c.role, name:c.name, phone:c.phone, other:c.other })),
-      buses: eBuses,
       savedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     setStatus('e-status', 'נשמר ✓');
@@ -1847,36 +1815,13 @@ async function exportEPDF(printMode = false) {
     <td style="padding:3px 5px;border:1px solid #ccc;font-size:9px;direction:ltr">${esc(c.other)}</td>
   </tr>`).join('');
 
-  const busBlocks = eBuses.map((bus, bi) => `
-    <div style="margin-bottom:10px">
-      <div style="background:#1b4332;color:white;padding:4px 8px;font-size:10px;font-weight:bold">
-        אוטובוס ${bi+1}
-        ${bus.classes ? ` — כיתות: ${esc(bus.classes)}` : ''}
-        ${bus.students ? ` | ${esc(bus.students)} תלמידים` : ''}
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="background:#2d6a4f;color:white">
-          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right;width:140px">תפקיד</th>
-          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right">שם מלווה</th>
-          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right;width:130px">מס׳ טלפון</th>
-        </tr></thead>
-        <tbody>${bus.crew.map((cr, ri) => `<tr style="${ri%2===0?'':'background:#f5faf7'}">
-          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(cr.role)}</td>
-          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(cr.name)}</td>
-          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;direction:ltr">${esc(cr.phone)}</td>
-        </tr>`).join('')}</tbody>
-      </table>
-    </div>`).join('') || '<div style="color:#aaa;font-size:9px;padding:6px">לא הוזנו אוטובוסים</div>';
-
   pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:20px 24px;font-size:10px;background:white">
     <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:14px">
       <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
       <div style="font-size:15px;font-weight:bold;margin-top:4px">נספח ה׳ — טלפונים חיוניים</div>
       <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')}</div>
     </div>
-
-    <div style="font-weight:bold;font-size:10px;margin-bottom:5px;color:#1b4332">חלק א׳ — גורמי חירום וקשר</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:#1b4332;color:white">
         <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:28px">מס׳</th>
         <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:160px">תפקיד</th>
@@ -1886,9 +1831,6 @@ async function exportEPDF(printMode = false) {
       </tr></thead>
       <tbody>${contactRows}</tbody>
     </table>
-
-    <div style="font-weight:bold;font-size:10px;margin-bottom:8px;color:#1b4332">חלק ב׳ — צוות האוטובוסים</div>
-    ${busBlocks}
   </div>`;
 
   if (printMode) { doPrint(pdfEl.innerHTML); return; }
@@ -1916,6 +1858,201 @@ async function exportEPDF(printMode = false) {
     pdf.save(`נספח ה – טלפונים חיוניים – ${t.name}.pdf`);
     setStatus('e-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('e-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── Appendix ו — טבלת שליטה ─────────────────────────────────────────────────
+const F_CREW_ROLES = ['מורה אחראי/ת', 'מורה נוסף', 'נהג', 'מאבטח/חובש', 'מדריך'];
+
+let fBuses      = [];
+let fClassRows  = [];
+
+function renderFBuses() {
+  const container = document.getElementById('f-buses-container');
+  if (!container) return;
+  if (fBuses.length === 0) {
+    container.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0">אין אוטובוסים — לחץ "+ הוסף אוטובוס"</div>';
+    return;
+  }
+  container.innerHTML = fBuses.map((bus, bi) => `
+    <div style="margin-bottom:16px;border:1px solid #ccc;border-radius:8px;overflow:hidden">
+      <div style="background:#1b4332;color:white;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-weight:bold;font-size:14px">אוטובוס ${bi+1}</span>
+        <label style="font-size:12px">כיתות:</label>
+        <input type="text" value="${esc(bus.classes||'')}" placeholder="ז׳1, ז׳2"
+          oninput="fBuses[${bi}].classes=this.value;scheduleF()"
+          style="width:100px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white;direction:rtl">
+        <label style="font-size:12px">תלמידים:</label>
+        <input type="number" value="${esc(bus.students||'')}" placeholder="0" min="0"
+          oninput="fBuses[${bi}].students=this.value;scheduleF()"
+          style="width:60px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white">
+        <label style="font-size:12px">מלווים:</label>
+        <input type="number" value="${esc(bus.escorts||'')}" placeholder="0" min="0"
+          oninput="fBuses[${bi}].escorts=this.value;scheduleF()"
+          style="width:60px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white">
+        <button onclick="deleteFBus(${bi})" style="background:none;border:none;color:#ff8a80;cursor:pointer;font-size:18px;padding:0 4px;margin-right:auto">✕</button>
+      </div>
+      <table class="sched-table" style="margin:0">
+        <thead><tr>
+          <th style="background:#2d6a4f;width:160px">תפקיד</th>
+          <th style="background:#2d6a4f">שם</th>
+          <th style="background:#2d6a4f;width:150px">טלפון</th>
+        </tr></thead>
+        <tbody>${F_CREW_ROLES.map((role, ri) => `<tr>
+          <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
+          <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
+            oninput="fBuses[${bi}].crew[${ri}].name=this.value;scheduleF()"></td>
+          <td><input type="text" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
+            oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`).join('');
+}
+
+function addFBus() {
+  fBuses.push({ classes:'', students:'', escorts:'', crew: F_CREW_ROLES.map(r => ({ role:r, name:'', phone:'' })) });
+  renderFBuses();
+}
+function deleteFBus(i) { fBuses.splice(i, 1); renderFBuses(); scheduleF(); }
+
+function renderFClassTable() {
+  const body = document.getElementById('f-class-body');
+  if (!body) return;
+  body.innerHTML = fClassRows.map((r, i) => `<tr>
+    <td><input type="text" value="${esc(r.className||'')}" placeholder="ז׳1" oninput="fClassRows[${i}].className=this.value;scheduleF()"></td>
+    <td><input type="number" value="${esc(r.planned||'')}" placeholder="0" min="0" oninput="fClassRows[${i}].planned=this.value;scheduleF()"></td>
+    <td><input type="number" value="${esc(r.actual||'')}" placeholder="0" min="0" oninput="fClassRows[${i}].actual=this.value;scheduleF()"></td>
+    <td><button class="btn-del-row" onclick="deleteFClassRow(${i})">✕</button></td>
+  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:12px;font-size:13px">אין כיתות — לחץ "+ הוסף כיתה"</td></tr>';
+}
+function addFClassRow() { fClassRows.push({ className:'', planned:'', actual:'' }); renderFClassTable(); }
+function deleteFClassRow(i) { fClassRows.splice(i, 1); renderFClassTable(); scheduleF(); }
+
+let _fSaveTimer = null;
+function scheduleF() { clearTimeout(_fSaveTimer); _fSaveTimer = setTimeout(saveAppendixF, 800); }
+
+async function loadAppendixF() {
+  fBuses = []; fClassRows = [];
+  if (!currentTrip || isLocal) { renderFBuses(); renderFClassTable(); return; }
+  try {
+    const doc = await formRef(currentTrip.id, 'appendix_f').get();
+    if (doc.exists) {
+      fBuses     = doc.data().buses      || [];
+      fClassRows = doc.data().classRows  || [];
+    }
+  } catch(e) { console.error(e); }
+  renderFBuses();
+  renderFClassTable();
+  setStatus('f-status', '');
+}
+
+async function saveAppendixF() {
+  if (!currentTrip || isLocal) { setStatus('f-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_f').set({
+      buses: fBuses, classRows: fClassRows,
+      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setStatus('f-status', 'נשמר ✓');
+  } catch(e) { setStatus('f-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportFPDF(printMode = false) {
+  if (!currentTrip) return;
+  const t = currentTrip;
+  const pdfEl = document.getElementById('pdf-appendix-f');
+
+  const busBlocks = fBuses.length ? fBuses.map((bus, bi) => {
+    const total = (parseInt(bus.students)||0) + (parseInt(bus.escorts)||0);
+    return `<div style="margin-bottom:10px">
+      <div style="background:#1b4332;color:white;padding:4px 8px;font-size:10px;font-weight:bold;display:flex;gap:16px">
+        <span>אוטובוס ${bi+1}</span>
+        ${bus.classes ? `<span>כיתות: ${esc(bus.classes)}</span>` : ''}
+        ${bus.students ? `<span>תלמידים: ${esc(bus.students)}</span>` : ''}
+        ${bus.escorts  ? `<span>מלווים: ${esc(bus.escorts)}</span>` : ''}
+        ${total ? `<span>סה"כ: ${total}</span>` : ''}
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#2d6a4f;color:white">
+          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right;width:130px">תפקיד</th>
+          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right">שם</th>
+          <th style="padding:3px 6px;border:1px solid #999;font-size:9px;text-align:right;width:120px">טלפון</th>
+        </tr></thead>
+        <tbody>${bus.crew.map((cr, ri) => `<tr style="${ri%2===0?'':'background:#f5faf7'}">
+          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(cr.role)}</td>
+          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(cr.name)}</td>
+          <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;direction:ltr">${esc(cr.phone)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }).join('') : '<div style="color:#aaa;font-size:9px;padding:6px">לא הוזנו אוטובוסים</div>';
+
+  const classTableRows = fClassRows.map(r => `<tr>
+    <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">${esc(r.className)}</td>
+    <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${esc(r.planned)}</td>
+    <td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${esc(r.actual)}</td>
+  </tr>`).join('') || '<tr><td colspan="3" style="padding:6px;border:1px solid #ddd;color:#aaa;text-align:center;font-size:9px">—</td></tr>';
+
+  const totalStudents = fBuses.reduce((s, b) => s + (parseInt(b.students)||0), 0);
+  const totalEscorts  = fBuses.reduce((s, b) => s + (parseInt(b.escorts)||0), 0);
+
+  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:20px 24px;font-size:10px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:14px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:4px">נספח ו׳ — טבלת שליטה בטיול</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')}</div>
+    </div>
+
+    <div style="font-weight:bold;font-size:10px;margin-bottom:8px;color:#1b4332">צוות האוטובוסים</div>
+    ${busBlocks}
+
+    <div style="font-weight:bold;font-size:10px;margin:14px 0 6px;color:#1b4332">סיכום לפי כיתה</div>
+    <table style="width:60%;border-collapse:collapse;margin-bottom:12px">
+      <thead><tr style="background:#1b4332;color:white">
+        <th style="padding:4px 6px;border:1px solid #999;font-size:9px">כיתה</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:9px;width:100px">מתוכנן</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:9px;width:100px">בפועל</th>
+      </tr></thead>
+      <tbody>${classTableRows}</tbody>
+    </table>
+
+    <table style="width:60%;border-collapse:collapse">
+      <thead><tr style="background:#2d6a4f;color:white">
+        <th style="padding:4px 6px;border:1px solid #999;font-size:9px">קטגוריה</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:9px;width:100px">מספר</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">תלמידים</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${totalStudents||''}</td></tr>
+        <tr style="background:#f5faf7"><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px">מלווים (מורים/הורים)</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center">${totalEscorts||''}</td></tr>
+        <tr><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;font-weight:bold">סה"כ</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;text-align:center;font-weight:bold">${totalStudents + totalEscorts || ''}</td></tr>
+      </tbody>
+    </table>
+  </div>`;
+
+  if (printMode) { doPrint(pdfEl.innerHTML); return; }
+  pdfEl.style.display = 'block';
+  setStatus('f-status', 'מייצא...');
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const margin = 8, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
+    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
+    pdfEl.style.display = 'none';
+    const imgW = contentW, imgH = canvas.height * imgW / canvas.width;
+    let yOff = 0, page = 0;
+    while (yOff < imgH) {
+      if (page > 0) pdf.addPage();
+      const sliceH = Math.min(contentH, imgH - yOff);
+      const srcY = yOff * canvas.width / imgW, srcH = sliceH * canvas.width / imgW;
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = Math.ceil(srcH);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH), 0, 0, canvas.width, Math.ceil(srcH));
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceH);
+      yOff += contentH; page++;
+    }
+    pdf.save(`נספח ו – טבלת שליטה – ${t.name}.pdf`);
+    setStatus('f-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; setStatus('f-status', 'שגיאה בייצוא'); console.error(e); }
 }
 
 // ─── Appendix ז — רשימת תלמידים ──────────────────────────────────────────────
