@@ -291,7 +291,10 @@ header h1{font-size:20px;font-weight:700}
               <span>🎓 <span id="detailClasses"></span></span>
             </div>
           </div>
-          <button class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="openEditTrip()">✏️ עריכה</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="trip-edit-btn" class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="openEditTrip()">✏️ עריכה</button>
+            <button id="trip-share-btn" class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="shareTripLink()">🔗 שתף טיול</button>
+          </div>
         </div>
       </div>
 
@@ -972,6 +975,21 @@ header h1{font-size:20px;font-weight:700}
 <!-- Toast notification -->
 <div class="toast" id="toast"></div>
 
+<!-- ════ JOIN PAGE (opened via ?jointiyul=) ════ -->
+<div id="joinPage" style="display:none;min-height:100vh;background:#f0f4f0;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:16px;padding:32px;max-width:400px;width:100%;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)">
+    <div style="font-size:48px;margin-bottom:12px">🏕️</div>
+    <h2 style="color:#1b4332;margin-bottom:8px">הצטרף לטיול</h2>
+    <div id="join-meta" style="color:#555;font-size:14px;margin-bottom:24px;line-height:1.6"></div>
+    <div id="join-login-area">
+      <p style="font-size:13px;color:#888;margin-bottom:12px">התחבר כדי להצטרף</p>
+      <button onclick="auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())" class="btn btn-primary" style="width:100%;margin-bottom:10px">🔵 התחבר עם Google</button>
+    </div>
+    <div id="join-joining" style="display:none;color:#1b4332;font-size:14px">⏳ מצטרף לטיול...</div>
+    <div id="join-error" style="display:none;color:#c0392b;font-size:13px;margin-top:12px"></div>
+  </div>
+</div>
+
 <!-- ════ SIGN PAGE (opened via ?tiyulsign=) ════ -->
 <div id="signPage">
   <div class="sign-card">
@@ -1038,16 +1056,18 @@ const firebaseConfig = {
 
 // Local / file:// bypass — no login needed when running from disk
 const isLocal = location.protocol === 'file:' || location.hostname === 'localhost';
-const signDocId = new URLSearchParams(location.search).get('tiyulsign');
+const signDocId  = new URLSearchParams(location.search).get('tiyulsign');
+const joinToken  = new URLSearchParams(location.search).get('jointiyul');
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let currentUser  = null;
-let currentTrip  = null;
-let editingTripId = null;
+let currentUser         = null;
+let currentTrip         = null;
+let currentTripOwnerUid = null;
+let editingTripId       = null;
 let trips = {};
 let signCurrentDocId = null;
 
@@ -1057,6 +1077,11 @@ if (signDocId) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('signPage').style.display    = 'flex';
   loadSignPage(signDocId);
+} else if (joinToken) {
+  // Join page — requires login
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('joinPage').style.display    = 'flex';
+  loadJoinPage(joinToken);
 } else if (isLocal) {
   // Skip login in local preview
   document.getElementById('loginScreen').style.display = 'none';
@@ -1138,8 +1163,12 @@ function signOut() { auth.signOut(); }
 function tripsRef() {
   return db.collection('users').doc(currentUser.uid).collection('trips');
 }
+function sharedTripsRef() {
+  return db.collection('users').doc(currentUser.uid).collection('shared_trips');
+}
 function formRef(tripId, formId) {
-  return db.collection('users').doc(currentUser.uid)
+  const ownerUid = currentTripOwnerUid || currentUser.uid;
+  return db.collection('users').doc(ownerUid)
            .collection('trips').doc(tripId)
            .collection('forms').doc(formId);
 }
@@ -1148,9 +1177,27 @@ function formRef(tripId, formId) {
 async function loadTrips() {
   if (isLocal) { renderTripList(); return; }
   try {
-    const snap = await tripsRef().orderBy('createdAt', 'desc').get();
+    const [ownSnap, sharedSnap] = await Promise.all([
+      tripsRef().orderBy('createdAt','desc').get(),
+      sharedTripsRef().get()
+    ]);
     trips = {};
-    snap.forEach(doc => { trips[doc.id] = { id: doc.id, ...doc.data() }; });
+    ownSnap.forEach(doc => { trips[doc.id] = { id: doc.id, ...doc.data() }; });
+    const sharedLoads = [];
+    sharedSnap.forEach(doc => {
+      const { ownerUid, tripId } = doc.data();
+      if (ownerUid && tripId) {
+        sharedLoads.push(
+          db.collection('users').doc(ownerUid).collection('trips').doc(tripId).get()
+            .then(tripDoc => {
+              if (tripDoc.exists) {
+                trips[tripId] = { id: tripId, ...tripDoc.data(), _shared: true, _ownerUid: ownerUid };
+              }
+            })
+        );
+      }
+    });
+    await Promise.all(sharedLoads);
     renderTripList();
   } catch(e) { console.error('loadTrips', e); }
 }
@@ -1168,7 +1215,7 @@ function renderTripList() {
   grid.innerHTML = list.map(t => `
     <div class="trip-card" onclick="openTrip('${t.id}')">
       <div class="trip-card-icon">🏕️</div>
-      <div class="trip-card-name">${esc(t.name)}</div>
+      <div class="trip-card-name">${esc(t.name)}${t._shared ? ' <span style="font-size:11px;background:#e3f2fd;color:#1565c0;border-radius:10px;padding:1px 7px;font-weight:600;vertical-align:middle">שותף</span>' : ''}</div>
       <div class="trip-card-details">
         ${t.school ? `🏫 ${esc(t.school)}<br>` : ''}
         ${t.fromDate ? `📅 ${formatDate(t.fromDate)}${t.toDate ? ' – ' + formatDate(t.toDate) : ''}` : ''}
@@ -1256,6 +1303,7 @@ async function saveTrip() {
 
 function openTrip(tripId) {
   currentTrip = trips[tripId];
+  currentTripOwnerUid = currentTrip._ownerUid || currentUser.uid;
   renderTripHeader();
   document.getElementById('tripListView').style.display    = 'none';
   document.getElementById('tripDetailView').style.display  = '';
@@ -1271,10 +1319,14 @@ function renderTripHeader() {
   document.getElementById('detailArea').textContent      = t.area || '—';
   document.getElementById('detailLeader').textContent    = t.leaderName || '—';
   document.getElementById('detailClasses').textContent   = t.classes || '—';
+  const isOwner = !t._shared;
+  document.getElementById('trip-edit-btn').style.display  = isOwner ? '' : 'none';
+  document.getElementById('trip-share-btn').style.display = isOwner ? '' : 'none';
 }
 
 function showTripList() {
   currentTrip = null;
+  currentTripOwnerUid = null;
   document.getElementById('tripListView').style.display   = '';
   document.getElementById('tripDetailView').style.display = 'none';
 }
@@ -3716,6 +3768,80 @@ async function exportMasaPDF(printMode=false) {
   }
 }
 
+// ─── Trip sharing ──────────────────────────────────────────────────────────────
+async function shareTripLink() {
+  if (!currentTrip || !currentUser || currentTrip._shared) return;
+  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const data = {
+    ownerUid: currentUser.uid,
+    tripId:   currentTrip.id,
+    tripName: currentTrip.name,
+    school:   currentTrip.school   || '',
+    fromDate: currentTrip.fromDate || '',
+    toDate:   currentTrip.toDate   || '',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    await db.collection('tiyul_invites').doc(token).set(data);
+  } catch(e) { alert('שגיאה ביצירת קישור: ' + e.message); return; }
+  currentShareRole = '_trip';
+  const url = `${location.origin}${location.pathname}?jointiyul=${token}`;
+  document.getElementById('share-title').textContent = `שתף טיול — ${currentTrip.name}`;
+  document.getElementById('share-desc').textContent  = `שלח את הקישור הבא לגישה משותפת לטיול "${currentTrip.name}"`;
+  document.getElementById('share-link').value = url;
+  openModal('shareModal');
+}
+
+async function loadJoinPage(token) {
+  const metaEl = document.getElementById('join-meta');
+  try {
+    const doc = await db.collection('tiyul_invites').doc(token).get();
+    if (!doc.exists) {
+      metaEl.innerHTML = '<span style="color:#c0392b">הקישור אינו תקף או שפג תוקפו.</span>';
+      document.getElementById('join-login-area').style.display = 'none';
+      return;
+    }
+    const d = doc.data();
+    const dates = d.fromDate && d.toDate ? `${formatDate(d.fromDate)} – ${formatDate(d.toDate)}` : '';
+    metaEl.innerHTML = `<strong style="font-size:16px;color:#1b4332">${esc(d.tripName||'')}</strong><br>${d.school ? esc(d.school)+'<br>' : ''}${dates}`;
+    auth.onAuthStateChanged(async user => {
+      if (!user) return;
+      document.getElementById('join-login-area').style.display = 'none';
+      document.getElementById('join-joining').style.display    = '';
+      await acceptJoinInvite(token, d, user);
+    });
+  } catch(e) {
+    metaEl.innerHTML = '<span style="color:#c0392b">שגיאה בטעינת הקישור.</span>';
+    console.error(e);
+  }
+}
+
+async function acceptJoinInvite(token, data, user) {
+  const errEl = document.getElementById('join-error');
+  if (user.uid === data.ownerUid) {
+    // Already the owner — just go to the app
+    window.location.href = location.origin + location.pathname;
+    return;
+  }
+  try {
+    await db.collection('users').doc(user.uid).collection('shared_trips').doc(data.tripId).set({
+      ownerUid: data.ownerUid,
+      tripId:   data.tripId,
+      tripName: data.tripName,
+      school:   data.school   || '',
+      fromDate: data.fromDate || '',
+      toDate:   data.toDate   || '',
+      joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    window.location.href = location.origin + location.pathname;
+  } catch(e) {
+    document.getElementById('join-joining').style.display = 'none';
+    errEl.textContent = 'שגיאה: ' + e.message;
+    errEl.style.display = '';
+    console.error(e);
+  }
+}
+
 // ─── הודעת מסע signatures ─────────────────────────────────────────────────────
 function renderMasaSigs() {
   // leader — direct canvas
@@ -3971,14 +4097,20 @@ function copyShareLink() {
 function shareWhatsApp() {
   const url = document.getElementById('share-link').value;
   const t = currentTrip;
-  const msg = `שלום, אבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על טיול "${t?.name||''}".\nלחץ/י על הקישור לחתימה:\n${url}`;
+  const msg = currentShareRole === '_trip'
+    ? `שלום, הזמנה לשיתוף טיול "${t?.name||''}".\nלחץ/י על הקישור להצטרף:\n${url}`
+    : `שלום, אבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על טיול "${t?.name||''}".\nלחץ/י על הקישור לחתימה:\n${url}`;
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 function shareGmail() {
   const url = document.getElementById('share-link').value;
   const t = currentTrip;
-  const subject = `בקשת חתימה — ${ROLE_LABELS[currentShareRole]} — טיול "${t?.name||''}"`;
-  const body = `שלום,\nאבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על תיק הטיול "${t?.name||''}".\n\nלחץ/י על הקישור לחתימה:\n${url}`;
+  const subject = currentShareRole === '_trip'
+    ? `הזמנה לשיתוף טיול — "${t?.name||''}"`
+    : `בקשת חתימה — ${ROLE_LABELS[currentShareRole]} — טיול "${t?.name||''}"`;
+  const body = currentShareRole === '_trip'
+    ? `שלום,\nהוזמנת לשיתוף עריכה בטיול "${t?.name||''}".\n\nלחץ/י על הקישור להצטרף:\n${url}`
+    : `שלום,\nאבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על תיק הטיול "${t?.name||''}".\n\nלחץ/י על הקישור לחתימה:\n${url}`;
   window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
 }
 
