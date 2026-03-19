@@ -12,6 +12,8 @@
 <!-- PDF Export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Excel/CSV import -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -525,9 +527,48 @@ header h1{font-size:20px;font-weight:700}
 
       <!-- ══ Appendix ז ══ -->
       <div class="appendix-content" id="content-g">
-        <div class="appendix-title">נספח ז׳ – רשימת התלמידים לפי כיתה</div>
-        <div class="appendix-subtitle">ייבוא מ-CSV</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+        <div class="appendix-title">נספח ז׳ – רשימת תלמידים</div>
+        <div class="appendix-subtitle">ייבוא מקובץ Excel • מיון ע"פ כיתה ושם</div>
+
+        <!-- Upload area -->
+        <div id="g-upload-area" style="border:2px dashed #bbb;border-radius:10px;padding:24px;text-align:center;margin-bottom:16px;cursor:pointer;background:#fafffe" onclick="document.getElementById('g-file-input').click()">
+          <div style="font-size:28px;margin-bottom:6px">📂</div>
+          <div style="font-size:14px;color:#555">לחץ/י לבחירת קובץ Excel או CSV</div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px">.xlsx / .xls / .csv</div>
+          <input type="file" id="g-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importGFile(this)">
+        </div>
+
+        <!-- Controls row -->
+        <div id="g-controls" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+          <span id="g-count" style="font-size:13px;color:#555"></span>
+          <div style="display:flex;align-items:center;gap:6px;margin-right:auto">
+            <label style="font-size:13px;white-space:nowrap">מיין לפי:</label>
+            <select id="g-sort-field" class="form-control" style="width:auto;font-size:13px;padding:4px 8px" onchange="renderGTable()">
+              <option value="class">כיתה ← שם משפחה</option>
+              <option value="last">שם משפחה</option>
+              <option value="first">שם פרטי</option>
+              <option value="id">ת.ז</option>
+              <option value="phone">טלפון</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" style="font-size:13px" onclick="document.getElementById('g-file-input').click()">🔄 החלף קובץ</button>
+          <button class="btn btn-secondary" style="font-size:13px" onclick="exportGPDF()">📄 ייצא PDF</button>
+        </div>
+
+        <!-- Table -->
+        <div style="overflow-x:auto" id="g-table-wrap" style="display:none">
+          <table class="sched-table" id="g-table">
+            <thead><tr>
+              <th style="width:110px">ת.ז</th>
+              <th>שם משפחה</th>
+              <th>שם פרטי</th>
+              <th style="width:70px">כיתה</th>
+              <th style="width:130px">טלפון</th>
+            </tr></thead>
+            <tbody id="g-table-body"></tbody>
+          </table>
+        </div>
+        <span id="g-status" style="font-size:13px;color:#888;display:block;margin-top:8px"></span>
       </div>
 
       <!-- ══ Appendix ח ══ -->
@@ -682,6 +723,7 @@ header h1{font-size:20px;font-weight:700}
 <div id="pdf-appendix-b" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-c" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-d" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+<div id="pdf-appendix-g" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 
 
 <script>
@@ -949,6 +991,7 @@ function showAppendix(id) {
   if (id === 'b') loadAppendixB();
   if (id === 'c') loadAppendixC();
   if (id === 'd') loadAppendixD();
+  if (id === 'g') loadAppendixG();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -1621,6 +1664,154 @@ async function exportDPDF() {
     pdf.save(`נספח ד – לוח זמנים – ${t.name}.pdf`);
     setStatus('d-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('d-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── Appendix ז — רשימת תלמידים ──────────────────────────────────────────────
+let gStudents = []; // { id, last, first, class, phone }
+
+async function loadAppendixG() {
+  gStudents = [];
+  if (!currentTrip || isLocal) { renderGTable(); return; }
+  try {
+    const doc = await formRef(currentTrip.id, 'appendix_g').get();
+    if (doc.exists) gStudents = doc.data().students || [];
+  } catch(e) { console.error(e); }
+  renderGTable();
+}
+
+function importGFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  setStatus('g-status', 'טוען...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      const parsed = [];
+      for (const row of rows) {
+        const id = String(row[0]||'').trim();
+        if (!/^\d{7,9}$/.test(id)) continue; // skip non-ID rows
+        const grade  = String(row[3]||'').trim();
+        const kita   = String(row[4]||'').trim();
+        parsed.push({
+          id,
+          last:    String(row[1]||'').trim(),
+          first:   String(row[2]||'').trim(),
+          class:   grade && kita ? `${grade}׳${kita}` : (grade || kita),
+          phone:   String(row[5]||'').trim()
+        });
+      }
+      gStudents = parsed;
+      input.value = '';
+      renderGTable();
+      saveAppendixG();
+    } catch(err) { setStatus('g-status', 'שגיאה בקריאת הקובץ: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function sortedStudents() {
+  const field = document.getElementById('g-sort-field')?.value || 'class';
+  const arr = [...gStudents];
+  if (field === 'class') {
+    arr.sort((a, b) => {
+      const cmp = a.class.localeCompare(b.class, 'he');
+      return cmp !== 0 ? cmp : a.last.localeCompare(b.last, 'he');
+    });
+  } else if (field === 'last')  { arr.sort((a,b) => a.last.localeCompare(b.last,'he')); }
+  else if (field === 'first') { arr.sort((a,b) => a.first.localeCompare(b.first,'he')); }
+  else if (field === 'id')    { arr.sort((a,b) => a.id.localeCompare(b.id)); }
+  else if (field === 'phone') { arr.sort((a,b) => a.phone.localeCompare(b.phone)); }
+  return arr;
+}
+
+function renderGTable() {
+  const hasStudents = gStudents.length > 0;
+  document.getElementById('g-controls').style.display    = hasStudents ? 'flex' : 'none';
+  document.getElementById('g-table-wrap').style.display  = hasStudents ? 'block' : 'none';
+  document.getElementById('g-upload-area').style.display = hasStudents ? 'none' : '';
+  if (!hasStudents) { setStatus('g-status', ''); return; }
+
+  const rows = sortedStudents();
+  document.getElementById('g-count').textContent = `${rows.length} תלמידים`;
+  document.getElementById('g-table-body').innerHTML = rows.map((s,i) =>
+    `<tr style="${i%2===0?'':'background:#f7faf8'}">
+      <td style="font-size:13px;direction:ltr">${esc(s.id)}</td>
+      <td style="font-size:13px">${esc(s.last)}</td>
+      <td style="font-size:13px">${esc(s.first)}</td>
+      <td style="font-size:13px;text-align:center">${esc(s.class)}</td>
+      <td style="font-size:13px;direction:ltr">${esc(s.phone)}</td>
+    </tr>`
+  ).join('');
+  setStatus('g-status', '');
+}
+
+async function saveAppendixG() {
+  if (!currentTrip || isLocal) { setStatus('g-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_g').set({ students: gStudents, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('g-status', 'נשמר ✓');
+  } catch(e) { setStatus('g-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportGPDF() {
+  if (!currentTrip || gStudents.length === 0) return;
+  const t = currentTrip;
+  const rows = sortedStudents();
+  const pdfEl = document.getElementById('pdf-appendix-g');
+
+  const tableRows = rows.map((s, i) => `<tr style="${i%2===0?'':'background:#f0f7f4'}">
+    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px;direction:ltr">${esc(s.id)}</td>
+    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px">${esc(s.last)}</td>
+    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px">${esc(s.first)}</td>
+    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px;text-align:center">${esc(s.class)}</td>
+    <td style="padding:3px 5px;border:1px solid #ccc;font-size:8.5px;direction:ltr">${esc(s.phone)}</td>
+  </tr>`).join('');
+
+  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:16px 20px;font-size:10px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:12px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:4px">נספח ז׳ — רשימת תלמידים</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')} | ${rows.length} תלמידים</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#1b4332;color:white">
+        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:90px;text-align:right">ת.ז</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;text-align:right">שם משפחה</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;text-align:right">שם פרטי</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:55px;text-align:right">כיתה</th>
+        <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:90px;text-align:right">טלפון</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>`;
+
+  pdfEl.style.display = 'block';
+  setStatus('g-status', 'מייצא...');
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const margin = 8, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
+    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
+    pdfEl.style.display = 'none';
+    const imgW = contentW, imgH = canvas.height * imgW / canvas.width;
+    let yOff = 0, page = 0;
+    while (yOff < imgH) {
+      if (page > 0) pdf.addPage();
+      const sliceH = Math.min(contentH, imgH - yOff);
+      const srcY = yOff * canvas.width / imgW, srcH = sliceH * canvas.width / imgW;
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = Math.ceil(srcH);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH), 0, 0, canvas.width, Math.ceil(srcH));
+      pdf.addImage(slice.toDataURL('image/jpeg',0.95),'JPEG', margin, margin, imgW, sliceH);
+      yOff += contentH; page++;
+    }
+    pdf.save(`נספח ז – רשימת תלמידים – ${t.name}.pdf`);
+    setStatus('g-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
 }
 
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
