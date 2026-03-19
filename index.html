@@ -1822,9 +1822,10 @@ async function exportGPDF() {
     pdfEl.style.display = 'none';
 
     const domToCanvas = canvas.width / pdfEl.offsetWidth;
-    const margin = 8, pageW = 210, pageH = 297;
+    const margin = 20, pageW = 210, pageH = 297;
     const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
     const contentH_canvas = contentH * (canvas.width / contentW);
+    const eps = 3; // canvas-pixel epsilon to absorb floating-point rounding
 
     // Build slice points that land on row boundaries
     const slices = [];
@@ -1832,12 +1833,13 @@ async function exportGPDF() {
     while (top < canvas.height) {
       const maxBottom = top + contentH_canvas;
       if (maxBottom >= canvas.height) { slices.push({ top, bottom: canvas.height }); break; }
-      // Find the last row that ends at or before maxBottom
-      let safeBottom = maxBottom;
+      // Find the last row that ends at or before maxBottom (with epsilon tolerance)
+      let safeBottom = -1;
       for (const rb of rowBottomsDom) {
         const rbC = rb * domToCanvas;
-        if (rbC > top && rbC <= maxBottom) safeBottom = rbC;
+        if (rbC > top + 1 && rbC <= maxBottom + eps) safeBottom = Math.min(rbC, maxBottom);
       }
+      if (safeBottom < 0) safeBottom = maxBottom; // fallback (no row fits — single giant row)
       slices.push({ top, bottom: safeBottom });
       top = safeBottom;
     }
