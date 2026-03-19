@@ -1813,14 +1813,47 @@ async function exportGPDF() {
   pdfEl.style.display = 'block';
   setStatus('g-status', 'מייצא...');
   try {
-    const { jsPDF } = window.jspdf;
+    // Measure row bottom positions in DOM before rendering (so we know safe slice points)
+    const pdfTop = pdfEl.getBoundingClientRect().top;
+    const rowBottomsDom = Array.from(pdfEl.querySelectorAll('tr'))
+      .map(tr => tr.getBoundingClientRect().bottom - pdfTop);
+
     const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
     pdfEl.style.display = 'none';
-    // Single continuous page — no slicing, no cut rows
-    const pageW = 210;
-    const imgH = Math.ceil(canvas.height * pageW / canvas.width);
-    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:[pageW, Math.max(297, imgH)] });
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageW, imgH);
+
+    const domToCanvas = canvas.width / pdfEl.offsetWidth;
+    const margin = 8, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
+    const contentH_canvas = contentH * (canvas.width / contentW);
+
+    // Build slice points that land on row boundaries
+    const slices = [];
+    let top = 0;
+    while (top < canvas.height) {
+      const maxBottom = top + contentH_canvas;
+      if (maxBottom >= canvas.height) { slices.push({ top, bottom: canvas.height }); break; }
+      // Find the last row that ends at or before maxBottom
+      let safeBottom = maxBottom;
+      for (const rb of rowBottomsDom) {
+        const rbC = rb * domToCanvas;
+        if (rbC > top && rbC <= maxBottom) safeBottom = rbC;
+      }
+      slices.push({ top, bottom: safeBottom });
+      top = safeBottom;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    for (let i = 0; i < slices.length; i++) {
+      if (i > 0) pdf.addPage();
+      const { top: sTop, bottom: sBottom } = slices[i];
+      const sliceH_canvas = sBottom - sTop;
+      const sliceH_mm = sliceH_canvas / (canvas.width / contentW);
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = Math.ceil(sliceH_canvas);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(sTop), canvas.width, Math.ceil(sliceH_canvas), 0, 0, canvas.width, Math.ceil(sliceH_canvas));
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, contentW, sliceH_mm);
+    }
     pdf.save(`נספח ז – רשימת תלמידים – ${t.name}.pdf`);
     setStatus('g-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
