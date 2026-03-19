@@ -700,8 +700,26 @@ header h1{font-size:20px;font-weight:700}
       <!-- ══ Appendix י ══ -->
       <div class="appendix-content" id="content-j">
         <div class="appendix-title">נספח י׳ – תלמידים בעלי מגבלות רפואיות</div>
-        <div class="appendix-subtitle">רשימה עם דגשים להשגחה</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+        <div class="appendix-subtitle">בחר/י תלמידים מהרשימה והוסף/י פרטים רפואיים</div>
+
+        <div id="j-add-row" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <select id="j-student-select" class="form-control" style="max-width:340px">
+            <option value="">— בחר/י תלמיד/ה —</option>
+          </select>
+          <button class="btn btn-secondary" onclick="addJRow()">+ הוסף</button>
+        </div>
+
+        <div id="j-no-students" style="display:none;color:#888;font-size:13px;margin-bottom:16px">
+          יש לטעון תחילה את רשימת התלמידים בנספח ז׳
+        </div>
+
+        <div id="j-table-wrap" style="overflow-x:auto;margin-bottom:20px"></div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportJPDF(true)">🖨️ הדפס</button>
+          <button class="btn btn-secondary" onclick="exportJPDF(false)">⬇ ייצא PDF</button>
+          <span id="j-status" style="font-size:13px;color:#888"></span>
+        </div>
       </div>
 
       <!-- ══ הודעת מסע ══ -->
@@ -838,6 +856,8 @@ header h1{font-size:20px;font-weight:700}
 <div id="pdf-appendix-e" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-f" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-g" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+<div id="pdf-appendix-i" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+<div id="pdf-appendix-j" style="display:none;position:fixed;left:-9999px;top:0;width:1122px"></div>
 
 
 <script>
@@ -1110,6 +1130,7 @@ function showAppendix(id) {
   if (id === 'g') loadAppendixG();
   if (id === 'h') loadAppendixH();
   if (id === 'i') loadAppendixI();
+  if (id === 'j') loadAppendixJ();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -2666,7 +2687,7 @@ async function exportIPDF(printMode = false) {
 
   if (printMode) { doPrint(html); return; }
 
-  const pdfEl = document.getElementById('pdf-appendix-g'); // reuse a spare hidden div
+  const pdfEl = document.getElementById('pdf-appendix-i');
   pdfEl.innerHTML = html;
   pdfEl.style.display = 'block';
   setStatus('i-status', 'מייצא...');
@@ -2683,6 +2704,170 @@ async function exportIPDF(printMode = false) {
     pdf.save(`נספח ט – ציוד חובה – ${t.name || 'טיול'}.pdf`);
     setStatus('i-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; pdfEl.innerHTML = ''; setStatus('i-status', 'שגיאה'); console.error(e); }
+}
+
+// ─── Appendix י — מגבלות רפואיות ─────────────────────────────────────────────
+let jRows = []; // [{ studentId, last, first, class, issue, notes }]
+let jSaveTimer = null;
+
+async function loadAppendixJ() {
+  jRows = [];
+  // load students from memory or Firestore
+  if (gStudents.length === 0 && currentTrip && !isLocal) {
+    try {
+      const doc = await formRef(currentTrip.id, 'appendix_g').get();
+      if (doc.exists) gStudents = (doc.data().students || []).map(s => ({ ...s, going: s.going !== false }));
+    } catch(e) { console.error(e); }
+  }
+  if (currentTrip && !isLocal) {
+    try {
+      const doc = await formRef(currentTrip.id, 'appendix_j').get();
+      if (doc.exists) jRows = doc.data().rows || [];
+    } catch(e) { console.error(e); }
+  }
+  renderJStudentSelect();
+  renderJTable();
+  setStatus('j-status', '');
+}
+
+function renderJStudentSelect() {
+  const addRow    = document.getElementById('j-add-row');
+  const noStudents = document.getElementById('j-no-students');
+  if (gStudents.length === 0) {
+    addRow.style.display = 'none';
+    noStudents.style.display = '';
+    return;
+  }
+  addRow.style.display = '';
+  noStudents.style.display = 'none';
+  const sorted = [...gStudents].sort((a, b) => {
+    const c = a.class.localeCompare(b.class, 'he');
+    return c !== 0 ? c : a.last.localeCompare(b.last, 'he');
+  });
+  const sel = document.getElementById('j-student-select');
+  sel.innerHTML = '<option value="">— בחר/י תלמיד/ה —</option>' +
+    sorted.map(s => `<option value="${esc(s.id)}">${esc(s.last)} ${esc(s.first)} (${esc(s.class)})</option>`).join('');
+}
+
+function addJRow() {
+  const sel = document.getElementById('j-student-select');
+  const id = sel.value;
+  if (!id) return;
+  if (jRows.find(r => r.studentId === id)) { setStatus('j-status', 'תלמיד/ה זה כבר ברשימה'); return; }
+  const s = gStudents.find(s => s.id === id);
+  if (!s) return;
+  jRows.push({ studentId: s.id, last: s.last, first: s.first, class: s.class, issue: '', notes: '' });
+  sel.value = '';
+  setStatus('j-status', '');
+  renderJTable();
+  scheduleJ();
+}
+
+function removeJRow(idx) {
+  jRows.splice(idx, 1);
+  renderJTable();
+  scheduleJ();
+}
+
+function renderJTable() {
+  const wrap = document.getElementById('j-table-wrap');
+  if (jRows.length === 0) {
+    wrap.innerHTML = '<p style="color:#aaa;font-size:13px;margin-bottom:8px">טרם נוספו תלמידים. בחר/י מהרשימה למעלה.</p>';
+    return;
+  }
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:600px">
+    <thead><tr style="background:#1b4332;color:white">
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">שם התלמיד/ה</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">כיתה</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">הבעיה הרפואית</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">דגשים להשגחה</th>
+      <th style="padding:8px;border:1px solid #555;width:32px"></th>
+    </tr></thead>
+    <tbody>${jRows.map((r, i) => `
+      <tr style="${i % 2 === 0 ? '' : 'background:#f0f7f4'}">
+        <td style="padding:6px 10px;border:1px solid #ddd;font-size:13px;white-space:nowrap">${esc(r.last)} ${esc(r.first)}</td>
+        <td style="padding:6px 10px;border:1px solid #ddd;font-size:13px;text-align:center">${esc(r.class)}</td>
+        <td style="padding:3px;border:1px solid #ddd">
+          <input class="form-control" style="font-size:13px;border:none;padding:5px 8px;background:transparent;min-width:160px"
+            value="${esc(r.issue)}" placeholder="תיאור הבעיה..."
+            oninput="jRows[${i}].issue=this.value;scheduleJ()">
+        </td>
+        <td style="padding:3px;border:1px solid #ddd">
+          <input class="form-control" style="font-size:13px;border:none;padding:5px 8px;background:transparent;min-width:180px"
+            value="${esc(r.notes)}" placeholder="דגשים..."
+            oninput="jRows[${i}].notes=this.value;scheduleJ()">
+        </td>
+        <td style="padding:4px;border:1px solid #ddd;text-align:center">
+          <button onclick="removeJRow(${i})"
+            style="background:none;border:none;color:#e57373;cursor:pointer;font-size:18px;line-height:1">✕</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function scheduleJ() {
+  clearTimeout(jSaveTimer);
+  jSaveTimer = setTimeout(saveAppendixJ, 1200);
+}
+
+async function saveAppendixJ() {
+  if (!currentTrip || isLocal) { setStatus('j-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_j').set({ rows: jRows, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('j-status', 'נשמר ✓');
+  } catch(e) { setStatus('j-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportJPDF(printMode = false) {
+  const t = currentTrip || { name: '', school: '' };
+  if (jRows.length === 0) { setStatus('j-status', 'אין נתונים לייצוא'); return; }
+
+  const rows = jRows.map((r, i) => `
+    <tr style="${i % 2 === 0 ? '' : 'background:#f0f7f4'}">
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${i + 1}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;white-space:nowrap">${esc(r.last)} ${esc(r.first)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${esc(r.class)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px">${esc(r.issue)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px">${esc(r.notes)}</td>
+    </tr>`).join('');
+
+  const html = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:24px 32px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:6px;margin-bottom:14px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:3px">נספח י׳ — תלמידים בעלי מגבלות רפואיות</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name || '')}${t.school ? ' | ' + esc(t.school) : ''}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#2d6a4f;color:white">
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;width:28px">מס׳</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;text-align:right">שם התלמיד/ה</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px">כיתה</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;text-align:right">הבעיה הרפואית</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;text-align:right">דגשים להשגחה</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+
+  if (printMode) { doPrint(html); return; }
+
+  const pdfEl = document.getElementById('pdf-appendix-j');
+  pdfEl.innerHTML = html;
+  pdfEl.style.display = 'block';
+  setStatus('j-status', 'מייצא...');
+  try {
+    const canvas = await html2canvas(pdfEl, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+    pdfEl.style.display = 'none';
+    pdfEl.innerHTML = '';
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const margin = 10, pageW = 297;
+    const contentW = pageW - margin * 2;
+    const imgH = canvas.height * contentW / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, contentW, imgH);
+    pdf.save(`נספח י – מגבלות רפואיות – ${t.name || 'טיול'}.pdf`);
+    setStatus('j-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; pdfEl.innerHTML = ''; setStatus('j-status', 'שגיאה'); console.error(e); }
 }
 
 // ─── Appendix ב signatures ────────────────────────────────────────────────────
