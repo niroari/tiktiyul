@@ -1781,30 +1781,30 @@ async function exportGPDF() {
 
   const tableRows = grouped.map(g => {
     if (g.type === 'header') return `
-      <tr><td colspan="5" style="padding:5px 6px;background:#1b4332;color:white;font-size:11px;font-weight:bold;border:1px solid #1b4332">${g.label}</td></tr>`;
+      <tr><td colspan="5" style="padding:5px 8px;background:#1b4332;color:white;font-size:11px;font-weight:bold;border:1px solid #1b4332">${g.label}</td></tr>`;
     const { s, i } = g;
     return `<tr style="${i%2===0?'':'background:#f0f7f4'}">
-      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px;direction:ltr">${esc(s.id)}</td>
-      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px">${esc(s.last)}</td>
-      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px">${esc(s.first)}</td>
-      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px;text-align:center">${esc(s.class)}</td>
-      <td style="padding:3px 5px;border:1px solid #ddd;font-size:10px;direction:ltr">${esc(s.phone)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;direction:ltr;white-space:nowrap">${esc(s.id)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;white-space:nowrap">${esc(s.last)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;white-space:nowrap">${esc(s.first)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;text-align:center;white-space:nowrap">${esc(s.class)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;direction:ltr;white-space:nowrap">${esc(s.phone)}</td>
     </tr>`;
   }).join('');
 
-  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:12px 16px;font-size:10px;background:white">
+  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:14px 18px;font-size:10px;background:white;width:760px">
     <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:6px;margin-bottom:10px">
       <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
       <div style="font-size:14px;font-weight:bold;margin-top:3px">נספח ז׳ — רשימת תלמידים</div>
       <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name||'')} | ${esc(t.school||'')} | ${pdfRows.length} תלמידים</div>
     </div>
-    <table style="width:100%;border-collapse:collapse">
+    <table style="width:100%;border-collapse:collapse;table-layout:auto">
       <thead><tr style="background:#2d6a4f;color:white">
-        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;width:95px;text-align:right">ת.ז</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;text-align:right">שם משפחה</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;text-align:right">שם פרטי</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;width:55px;text-align:right">כיתה</th>
-        <th style="padding:4px 5px;border:1px solid #999;font-size:10px;width:95px;text-align:right">טלפון</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right;white-space:nowrap">ת.ז</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right">שם משפחה</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right">שם פרטי</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right;white-space:nowrap">כיתה</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right;white-space:nowrap">טלפון</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
@@ -1814,23 +1814,13 @@ async function exportGPDF() {
   setStatus('g-status', 'מייצא...');
   try {
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p','mm','a4');
-    const margin = 8, pageW = 210, pageH = 297;
-    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
     const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
     pdfEl.style.display = 'none';
-    const imgW = contentW, imgH = canvas.height * imgW / canvas.width;
-    let yOff = 0, page = 0;
-    while (yOff < imgH) {
-      if (page > 0) pdf.addPage();
-      const sliceH = Math.min(contentH, imgH - yOff);
-      const srcY = yOff * canvas.width / imgW, srcH = sliceH * canvas.width / imgW;
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width; slice.height = Math.ceil(srcH);
-      slice.getContext('2d').drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH), 0, 0, canvas.width, Math.ceil(srcH));
-      pdf.addImage(slice.toDataURL('image/jpeg',0.95),'JPEG', margin, margin, imgW, sliceH);
-      yOff += contentH; page++;
-    }
+    // Single continuous page — no slicing, no cut rows
+    const pageW = 210;
+    const imgH = Math.ceil(canvas.height * pageW / canvas.width);
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:[pageW, Math.max(297, imgH)] });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageW, imgH);
     pdf.save(`נספח ז – רשימת תלמידים – ${t.name}.pdf`);
     setStatus('g-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
