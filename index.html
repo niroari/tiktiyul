@@ -1306,30 +1306,53 @@ async function exportBPDF() {
 
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
 function setupCanvas(canvas, onEnd) {
-  // Clone to remove any stale listeners
-  const fresh = canvas.cloneNode(true);
-  canvas.parentNode.replaceChild(fresh, canvas);
-  canvas = fresh;
+  // Size canvas to match its actual display pixels (no scaling math needed)
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width > 10) {
+    canvas.width  = Math.round(rect.width);
+    canvas.height = Math.round(rect.height);
+  }
 
   const ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
   let drawing = false;
 
-  function pos(e) {
+  function getXY(e) {
     const r   = canvas.getBoundingClientRect();
-    const scX = canvas.width  / r.width;
-    const scY = canvas.height / r.height;
     const src = e.touches ? e.touches[0] : e;
-    return { x: (src.clientX - r.left) * scX, y: (src.clientY - r.top) * scY };
+    return { x: src.clientX - r.left, y: src.clientY - r.top };
   }
-  canvas.addEventListener('mousedown',  e => { drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
-  canvas.addEventListener('mousemove',  e => { if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
-  canvas.addEventListener('mouseup',    () => { drawing=false; if(onEnd)onEnd(); });
-  canvas.addEventListener('mouseleave', () => { if(drawing){ drawing=false; if(onEnd)onEnd(); }});
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); },{passive:false});
-  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); },{passive:false});
-  canvas.addEventListener('touchend',   () => { drawing=false; if(onEnd)onEnd(); });
-  return canvas; // return the fresh element
+
+  function onDown(e) {
+    e.preventDefault();
+    drawing = true;
+    const {x,y} = getXY(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+  function onMove(e) {
+    e.preventDefault();
+    if (!drawing) return;
+    const {x,y} = getXY(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+  function onUp() {
+    drawing = false;
+    if (onEnd) onEnd();
+  }
+
+  canvas.addEventListener('mousedown',  onDown, {passive:false});
+  canvas.addEventListener('mousemove',  onMove, {passive:false});
+  canvas.addEventListener('mouseup',    onUp);
+  canvas.addEventListener('mouseleave', onUp);
+  canvas.addEventListener('touchstart', onDown, {passive:false});
+  canvas.addEventListener('touchmove',  onMove, {passive:false});
+  canvas.addEventListener('touchend',   onUp);
 }
 function clearCanvas(id) {
   const c = document.getElementById(id);
@@ -1356,8 +1379,6 @@ function sigsRef() { return db.collection('tiyul_signatures'); }
 function initBTeacherCanvas() {
   const canvas = document.getElementById('b-teacher-canvas');
   if (!canvas) return;
-  canvas.width  = canvas.offsetWidth  || 300;
-  canvas.height = 100;
   setupCanvas(canvas, () => saveBTeacherSig());
 }
 
@@ -1492,12 +1513,8 @@ async function loadSignPage(docId) {
   // Init canvas after layout is fully settled
   setTimeout(() => {
     const canvas = document.getElementById('sign-canvas');
-    const card   = document.querySelector('.sign-card');
-    const w = (card ? card.clientWidth - 64 : 0) || 360;
-    canvas.width  = Math.max(w, 280);
-    canvas.height = 140;
     setupCanvas(canvas, null);
-  }, 300);
+  }, 400);
   try {
     const doc = await db.collection('tiyul_signatures').doc(docId).get();
     if (!doc.exists) {
