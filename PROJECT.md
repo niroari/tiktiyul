@@ -27,16 +27,21 @@ Nir fills in all required forms online, then exports a PDF per appendix — form
 
 ## Firestore Structure
 ```
-users/{uid}/trips/{tripId}          — trip metadata
+users/{uid}/trips/{tripId}                  — trip metadata (owner only)
   name, school, fromDate, toDate, area, classes
   leaderName, principalName, coordinatorName
-  accommodation, transport
-  createdAt
+  accommodation, transport, createdAt
 
 users/{uid}/trips/{tripId}/forms/{formId}   — per-appendix data
-  formId = appendix_a, appendix_b, ... appendix_j, masa, team
+  formId = appendix_a ... appendix_j, masa, team
 
-tiyul_signatures/{uid}_{tripId}_{role}     — remote signing docs (public read)
+users/{uid}/shared_trips/{tripId}           — pointer written when user joins a shared trip
+  ownerUid, tripId, tripName, school, fromDate, toDate, joinedAt
+
+tiyul_invites/{token}                       — invite docs for trip sharing
+  ownerUid, tripId, tripName, school, fromDate, toDate, createdAt
+
+tiyul_signatures/{uid}_{tripId}_{role}      — remote signing docs (public read/write)
   role = coordinator | principal | c_principal | masa_principal
 ```
 
@@ -153,7 +158,9 @@ Page 2:
 - Remote signing via shared link — Firestore collection `tiyul_signatures/{uid}_{tripId}_{role}`, public page at `?tiyulsign=DOCID` (no login required). Used in: נספח ב (coordinator + principal), נספח ג (principal), הודעת מסע (principal = masa_principal).
 - **הודעת מסע PDF approach:** original PDF pages embedded as base64 JPEG (~90KB each), text overlaid using `position:absolute` divs via `masaCell()`. Print button uses a separate clean HTML table layout (`buildMasaPrintHtml()`), not the background image overlay.
 - **צוות הטיול** (formId=`team`) — standalone section between ה and ו. Staff names feed into נספח ו מורה fields via `<datalist>` autocomplete with phone auto-fill.
-- **Dashboard** — default landing tab when opening a trip. Loads gStudents, teamMembers, fBuses, jRows and all form docs in parallel for stats + completion status.
+- **Dashboard** — default landing tab when opening a trip. Loads gStudents, teamMembers, fBuses, jRows and all form docs in parallel for stats + completion status. "יוצאים בסה"כ" = students + staff (teamMembers.length).
+- **Trip sharing** — owner clicks "🔗 שתף טיול" → creates `tiyul_invites/{token}` → share link `?jointiyul={token}`. Joiner opens link, logs in, gets written to `users/{uid}/shared_trips/{tripId}`. App then loads their shared trips alongside own trips. `currentTripOwnerUid` tracks whose Firestore path to use; `formRef()` uses it. Collaborators see a "שותף" badge and cannot edit trip metadata.
+- **Firestore rules** — production rules deployed (replaced test-mode open rules). Collaborator access gated by existence of `users/{uid}/shared_trips/{tripId}` doc.
 - **Gotcha (temporal dead zone):** module-level `let` variables used by boot-time functions must be declared in the `// ─── State ───` section BEFORE the boot code. Declaring them later causes silent async crashes.
 - **Print buttons:** every export function takes `printMode = false`. When `true`, calls `doPrint(html)` → `#print-area` + `window.print()`. All appendices follow this pattern.
 - **Appendix ז PDF page breaks:** skipped — browser handles page breaks natively via print button.
