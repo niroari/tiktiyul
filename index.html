@@ -1491,11 +1491,24 @@ async function exportCPDF() {
   pdfEl.style.display = 'block';
   setStatus('c-status', 'מייצא...');
   try {
-    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#ffffff' });
-    pdfEl.style.display = 'none';
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+    const pdf = new jsPDF('p','mm','a4');
+    const margin = 8, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
+    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
+    pdfEl.style.display = 'none';
+    const imgW = contentW, imgH = canvas.height * imgW / canvas.width;
+    let yOff = 0, page = 0;
+    while (yOff < imgH) {
+      if (page > 0) pdf.addPage();
+      const sliceH = Math.min(contentH, imgH - yOff);
+      const srcY = yOff * canvas.width / imgW, srcH = sliceH * canvas.width / imgW;
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = Math.ceil(srcH);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH), 0, 0, canvas.width, Math.ceil(srcH));
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceH);
+      yOff += contentH; page++;
+    }
     pdf.save(`נספח ג – כתב מינוי – ${t.name}.pdf`);
     setStatus('c-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('c-status', 'שגיאה בייצוא'); console.error(e); }
@@ -1587,11 +1600,24 @@ async function exportDPDF() {
   pdfEl.style.display = 'block';
   setStatus('d-status', 'מייצא...');
   try {
-    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#ffffff' });
-    pdfEl.style.display = 'none';
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+    const pdf = new jsPDF('p','mm','a4');
+    const margin = 8, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
+    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
+    pdfEl.style.display = 'none';
+    const imgW = contentW, imgH = canvas.height * imgW / canvas.width;
+    let yOff = 0, page = 0;
+    while (yOff < imgH) {
+      if (page > 0) pdf.addPage();
+      const sliceH = Math.min(contentH, imgH - yOff);
+      const srcY = yOff * canvas.width / imgW, srcH = sliceH * canvas.width / imgW;
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = Math.ceil(srcH);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH), 0, 0, canvas.width, Math.ceil(srcH));
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceH);
+      yOff += contentH; page++;
+    }
     pdf.save(`נספח ד – לוח זמנים – ${t.name}.pdf`);
     setStatus('d-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('d-status', 'שגיאה בייצוא'); console.error(e); }
