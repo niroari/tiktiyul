@@ -1481,6 +1481,14 @@ let signCurrentDocId = null;
 
 async function loadSignPage(docId) {
   signCurrentDocId = docId;
+  // Init canvas after layout is ready
+  requestAnimationFrame(() => {
+    const canvas = document.getElementById('sign-canvas');
+    const w = canvas.parentElement?.offsetWidth || 360;
+    canvas.width  = w > 40 ? w : 360;
+    canvas.height = 120;
+    setupCanvas(canvas, null);
+  });
   try {
     const doc = await db.collection('tiyul_signatures').doc(docId).get();
     if (!doc.exists) {
@@ -1495,10 +1503,7 @@ async function loadSignPage(docId) {
     if (d.status === 'signed') {
       document.getElementById('sign-success').style.display = '';
       document.getElementById('sign-submit-btn').style.display = 'none';
-    } else {
-      const canvas = document.getElementById('sign-canvas');
-      canvas.width = canvas.offsetWidth || 360;
-      setupCanvas(canvas, null);
+      document.getElementById('sign-canvas').style.display = 'none';
     }
   } catch(e) {
     document.getElementById('sign-meta').textContent = 'שגיאה בטעינה: ' + e.message;
