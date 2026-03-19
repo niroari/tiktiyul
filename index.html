@@ -595,7 +595,6 @@ header h1{font-size:20px;font-weight:700}
     <h2 id="sign-role-title">חתימה</h2>
     <div class="sign-meta" id="sign-meta"></div>
     <canvas id="sign-canvas" width="360" height="140" style="touch-action:none;user-select:none;-webkit-user-select:none"></canvas>
-    <div id="canvas-debug" style="font-size:11px;color:#aaa;text-align:center;margin-bottom:6px">אתחול...</div>
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn btn-secondary" style="flex:1;font-size:13px" onclick="clearCanvas('sign-canvas')">נקה</button>
     </div>
@@ -664,7 +663,6 @@ if (signDocId) {
   // Public sign page — no login needed
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('signPage').style.display    = 'flex';
-  document.getElementById('canvas-debug').textContent  = 'BOOT OK — calling loadSignPage';
   loadSignPage(signDocId);
 } else if (isLocal) {
   // Skip login in local preview
@@ -1310,15 +1308,6 @@ async function exportBPDF() {
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
 function setupCanvas(canvas, onEnd) {
   const ctx = canvas.getContext('2d');
-
-  // Debug: paint placeholder text to confirm canvas renders
-  const dbg = document.getElementById('canvas-debug');
-  if (dbg) dbg.textContent = 'Canvas מוכן — ממתין לחתימה';
-  ctx.fillStyle = '#ccc';
-  ctx.font = '13px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('חתום/י כאן', canvas.width / 2, canvas.height / 2);
-
   let isDrawing = false, lastX = 0, lastY = 0;
 
   function sigPos(e) {
@@ -1515,14 +1504,7 @@ function shareGmail() {
 // ─── Sign page (public — no login) ────────────────────────────────────────────
 async function loadSignPage(docId) {
   signCurrentDocId = docId;
-  document.getElementById('canvas-debug').textContent = 'loadSignPage נקרא';
-  try {
-    const c = document.getElementById('sign-canvas');
-    document.getElementById('canvas-debug').textContent = 'canvas el: ' + (c ? 'נמצא' : 'NULL!');
-    setupCanvas(c, null);
-  } catch(err) {
-    document.getElementById('canvas-debug').textContent = 'שגיאה: ' + err.message;
-  }
+  setupCanvas(document.getElementById('sign-canvas'), null);
   try {
     const doc = await db.collection('tiyul_signatures').doc(docId).get();
     if (!doc.exists) {

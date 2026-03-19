@@ -8,8 +8,10 @@ Nir fills in all required forms online, then exports a PDF per appendix — form
 
 ## Files
 - **Main file:** `/Users/nirozari/Projects/Tik Tiyul/index.html`
+- **GitHub:** https://github.com/niroari/tiktiyul
+- **Vercel (live):** https://tiktiyul.vercel.app
 - **Reference PDFs:** same folder (ogdan.pdf + individual appendix files + הודעת מסע.pdf)
-- GitHub / Vercel: not yet set up
+- Every push to GitHub auto-deploys to Vercel
 
 ---
 
@@ -41,9 +43,9 @@ users/{uid}/trips/{tripId}/forms/{formId}   — per-appendix data
 
 | ID | Label | Content | Status |
 |----|-------|---------|--------|
-| א (a) | ביקורת לפני יציאה | Checklist: ~20 rows, each with "week before" + "morning of trip" checkboxes + notes | 🔧 next |
-| ב (b) | אישור מנהל ורכז | Schedule table + notes + signatures (principal + coordinator) | pending |
-| ג (c) | כתב מינוי | Simple appointment letter — classes, dates, area, principal signature | pending |
+| א (a) | ביקורת לפני יציאה | Checklist: ~20 rows, each with "week before" + "morning of trip" checkboxes + notes | ✅ done |
+| ב (b) | אישור מנהל ורכז | Schedule table + notes + signatures (principal + coordinator) | ✅ done |
+| ג (c) | כתב מינוי | Simple appointment letter — classes, dates, area, principal signature | 🔧 next |
 | ד (d) | לוח זמנים | Dynamic table: day / time / activity+place / notes | pending |
 | ה (e) | טלפונים חיוניים | Two parts: essential contacts (fixed rows) + bus crew table (dynamic, per bus) | pending |
 | ו (f) | טבלת שליטה | Bus control table: classes, teacher, driver, security, guide, counts | pending |
@@ -137,3 +139,6 @@ Page 2:
 - Student list (נספח ז) — CSV import
 - Medical limitations (נספח י) — pulls names from student list, user adds medical details
 - Local file:// bypass — skip login when opening from disk for preview
+- Canvas signatures — shared `setupCanvas(canvas, onEnd)` function using mouse+touch events with `getBoundingClientRect` scaling factor (ported from Shelach Reports). Works for both in-form (teacher) and remote signing.
+- Remote signing via shared link — Firestore collection `tiyul_signatures/{uid}_{tripId}_{role}`, public page at `?tiyulsign=DOCID` (no login required). Coordinator + principal sign remotely; teacher signs in-form.
+- **Gotcha (temporal dead zone):** module-level `let` variables that are used by functions called from the boot code must be declared in the `// ─── State ───` section BEFORE the boot code. If declared later in the file, JavaScript silently crashes async functions that reference them — no visible error.
