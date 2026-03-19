@@ -3181,9 +3181,9 @@ function buildMasaPage1() {
   ${f(54,406,343,417,d.contentLine2,'right',8)}
   ${f(57,428,334,439,d.adminLine1,'right',8)}
   ${f(56,442,333,453,d.adminLine2,'right',8)}
-  ${f(59,465,97,476,d.busCount,'center')}
-  ${f(158,465,240,476,d.busCompany,'right',8)}
-  ${f(295,465,339,476,d.busTel,'center',8)}
+  ${f(295,465,339,476,d.busCount,'center')}
+  ${f(155,465,210,476,d.busCompany,'right',8)}
+  ${f(59,465,150,476,d.busTel,'center',8)}
   ${f(286,479,352,490,d.busAttached,'center')}
   ${f(251,515,340,526,d.securityDate,'center',8)}
   </div>`;
@@ -3215,10 +3215,10 @@ function buildMasaPage2() {
   let roles = '';
   d.roles.forEach((r,i)=>{
     const [y0,y1]=rY[i];
-    roles += f(611,y0,728,y1,r.name,'right',8)
-            +f(456,y0,611,y1,r.id,'center',8,'ltr')
-            +f(327,y0,456,y1,r.phone,'center',8,'ltr')
-            +(i>=2?f(35,y0,327,y1,r.cert,'right',8):'');
+    roles += f(628,y0,728,y1,r.name,'right',8)
+            +f(456,y0,628,y1,r.id,'center',8,'ltr')
+            +f(336,y0,456,y1,r.phone,'center',8,'ltr')
+            +(i>=2?f(35,y0,336,y1,r.cert,'right',8):'');
   });
   return `<div style="width:842px;height:596px;position:relative;overflow:hidden;background:#fff">
   <img src="data:image/jpeg;base64,${MASA_P2_B64}" style="position:absolute;left:0;top:0;width:842px;height:596px" draggable="false">
