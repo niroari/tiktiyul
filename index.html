@@ -9,6 +9,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- PDF Export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -110,6 +113,20 @@ header h1{font-size:20px;font-weight:700}
 .coming-soon{text-align:center;padding:60px 20px;color:#aaa}
 .coming-soon-icon{font-size:48px;margin-bottom:12px}
 .coming-soon p{font-size:15px}
+
+/* ── Checklist (appendix א) ── */
+.cl-table{width:100%;border-collapse:collapse;font-size:14px}
+.cl-table thead th{background:#1b4332;color:white;padding:9px 8px;text-align:right;font-size:13px;font-weight:600;border:1px solid #145229}
+.cl-cat-row td{background:#e8f5e9;color:#1b4332;font-weight:700;padding:8px 10px;font-size:13px;border-bottom:1px solid #c8e6c9}
+.cl-item-row td{padding:8px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.cl-item-row:hover td{background:#f9fffe}
+.cl-num{text-align:center;color:#bbb;font-size:11px;width:36px}
+.cl-detail{line-height:1.5}
+.cl-ref{display:inline-block;margin-right:8px;font-size:11px;color:#888;background:#f0f0f0;padding:1px 6px;border-radius:4px;white-space:nowrap}
+.cl-cb-col{text-align:center;width:70px}
+.cl-cb{width:20px;height:20px;cursor:pointer;accent-color:#2d6a4f}
+.cl-note{width:100%;border:1px solid #e0e0e0;border-radius:5px;padding:5px 7px;font-size:12px;font-family:inherit;background:#fafffe;direction:rtl}
+.cl-note:focus{outline:none;border-color:#2d6a4f;background:white}
 
 /* ── Mobile ── */
 @media(max-width:600px){
@@ -260,8 +277,29 @@ header h1{font-size:20px;font-weight:700}
       <!-- ══ Appendix א – ביקורת לפני יציאה ══ -->
       <div class="appendix-content active" id="content-a">
         <div class="appendix-title">נספח א׳ – טופס ביקורת לפני יציאה לטיול</div>
-        <div class="appendix-subtitle">ממלאים שבוע לפני ובבוקר הטיול</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+        <div class="appendix-subtitle">ממלאים שבוע לפני ובבוקר הטיול • עותק חתום מועבר למנהל/ת בבוקר הטיול</div>
+
+        <div style="overflow-x:auto" id="checklist-a-container">
+          <!-- Rendered by JS -->
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="form-row" style="margin-top:16px">
+          <div class="form-group">
+            <label>טיול / סיור כיתות</label>
+            <input type="text" class="form-control" id="a-classes" readonly style="background:#f7f7f7">
+          </div>
+          <div class="form-group">
+            <label>שם אחראי/ת הטיול</label>
+            <input type="text" class="form-control" id="a-leader" readonly style="background:#f7f7f7">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportAppendixAPDF()">📄 ייצא PDF</button>
+          <span id="a-status" style="font-size:13px;color:#888"></span>
+        </div>
       </div>
 
       <!-- ══ Appendix ב ══ -->
@@ -414,6 +452,9 @@ header h1{font-size:20px;font-weight:700}
 
 <!-- Toast notification -->
 <div class="toast" id="toast"></div>
+
+<!-- Hidden PDF render area -->
+<div id="pdf-appendix-a" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 
 
 <script>
@@ -670,6 +711,230 @@ function showAppendix(id) {
   document.querySelectorAll('.appendix-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + id)?.classList.add('active');
   document.getElementById('content-' + id)?.classList.add('active');
+  if (id === 'a') loadAppendixA();
+}
+
+// ─── Appendix א — Checklist ───────────────────────────────────────────────────
+const CHECKLIST_A = [
+  { n:1, s:'תיק אחראי טיול', sub:'אישורים + רשימות', items:[
+    {d:'כתב מינוי לאחראי/ת טיול בחתימת מנהל/ת ביה"ס',                    r:"נספח ב'"},
+    {d:'אישור מנהל/ת ביה"ס ליציאה לטיול',                                  r:"נספח ג'"},
+    {d:'אישור ביטחוני מהלשכה לתיאום טיולים — תואם לתוכנית הטיול'},
+    {d:'אישור מנהל/ת ביה"ס לפעילות חריגה בטיול + הנוהל הרלוונטי מחוזר מנכ"ל', r:"נספח ד'"},
+    {d:'אישור הורים על השתתפות בנם / בתם והצהרת בריאות',                  r:"נספח ה'"},
+    {d:'רשימת תלמידים משתתפים — 3 עותקים: אחראי הטיול / אחראי אוטובוס וכתה / מזכירות ביה"ס'},
+    {d:'רשימת תלמידים עם מגבלות רפואיות',                                  r:"נספח ו'"},
+    {d:'טופס הפניה לטיפול רפואי לתלמיד שנפגע במהלך טיול',                 r:"נספח ז'"},
+    {d:'רשימת תלמידים שנפגעו במהלך טיול',                                  r:"נספח ח'"},
+    {d:'טופס ביטוח למתנדב',                                                 r:"נספח ט'"},
+    {d:'רשימת מלווים וטלפונים חיוניים בטיול',                              r:"נספח י'"},
+    {d:'הוראות פתיחה באש למאבטחים',                                         r:'נספח י"א'},
+    {d:'הנחיות למורה אחראי/ת באוטובוס',                                     r:'נספח י"ב'},
+    {d:'הנחיות למורה אחראי/ת כתה',                                          r:'נספח י"ג'},
+    {d:'עדכון מזג אויר והתאמתו לטיול'},
+    {d:'ביצוע תיאום טלפוני כנדרש באישור הטיול'},
+    {d:'המצאות מפת אזור הטיול כולל מפת סימון שבילים 1:50,000'},
+    {d:'ביצוע סיור הכנה מקדים ע"י אחראי/ת טיול'},
+    {d:'ביצוע ניהול סיכונים עם חברת הטיולים לפני היציאה — הדגשת המסקנות לפני המסלול'},
+    {d:'המצאות פנקס כיס לטיול',                                             r:'מומלץ'},
+  ]},
+  { n:2, s:'אוטובוס', items:[
+    {d:'אישור קצין בטיחות לאוטובוס'},
+    {d:'אישור הסעת תלמידים — לנהג'},
+    {d:'המצאות אלונקה, תיק ע"ר, ערכת חילוץ, מים וקשר'},
+    {d:'גיל האוטובוס עד 10 שנים'},
+    {d:'חגורות בטיחות'},
+    {d:'סריקת האוטובוס טרם עליית התלמידים'},
+  ]},
+  { n:3, s:'ציוד', items:[
+    {d:'בדיקת מנשאים ומיכלי מים רזרביים'},
+    {d:'בדיקת ציוד חיוני אצל תלמידים: מים, כובע ונעליים מתאימות'},
+    {d:'המצאות ובדיקה של תיק עזרה ראשונה — תקניים ובכמות כנדרש בחוזר מנכ"ל'},
+    {d:'אחר — עפ"י אופי הטיול'},
+  ]},
+  { n:4, s:'תדריך', items:[
+    {d:'לתלמידים: כללי בטיחות בנסיעה ובהליכה ודגשים מיוחדים'},
+    {d:'למאבטחים: הוראות פתיחה באש, מקומם במהלך הטיול + המצאות תיעוד נדרש', r:'איסור שימוש בעוזי'},
+    {d:'לנהגים: תוכנית הטיול ולו"ז, ציר נסיעה, מהירות נסיעה — בטיחות'},
+    {d:'למדריכים: לו"ז מסלול + תעודות תו תקן'},
+    {d:'למלווים: תפקידם ואחריותם'},
+  ]},
+  { n:5, s:'דיווחים', items:[
+    {d:'טרם היציאה — למוקד עירוני טל׳ 106'},
+    {d:'במקרה של אירוע חריג: לחדר מצב 02-6222211 | למנהלת ביה"ס | למוקד 106'},
+  ]},
+];
+
+let aData = {};
+let aAutoSaveTimer = null;
+
+function itemKey(catN, i) { return `${catN}_${i}`; }
+
+function renderChecklistA() {
+  const container = document.getElementById('checklist-a-container');
+  if (!container) return;
+  let html = `<table class="cl-table"><thead><tr>
+    <th style="width:36px">מס"ד</th>
+    <th>פירוט הנושא</th>
+    <th class="cl-cb-col">שבוע<br>לפני</th>
+    <th class="cl-cb-col">בוקר<br>הטיול</th>
+    <th style="min-width:130px">הערות</th>
+  </tr></thead><tbody>`;
+
+  CHECKLIST_A.forEach(cat => {
+    html += `<tr class="cl-cat-row">
+      <td style="text-align:center">${cat.n}</td>
+      <td colspan="4"><strong>${cat.s}</strong>${cat.sub ? `<span style="font-size:11px;opacity:.65;margin-right:8px">${cat.sub}</span>` : ''}</td>
+    </tr>`;
+    cat.items.forEach((item, i) => {
+      const k = itemKey(cat.n, i);
+      const s = aData[k] || {w:false, m:false, note:''};
+      html += `<tr class="cl-item-row">
+        <td class="cl-num"></td>
+        <td class="cl-detail">${esc(item.d)}${item.r ? `<span class="cl-ref">${esc(item.r)}</span>` : ''}</td>
+        <td class="cl-cb-col"><input type="checkbox" class="cl-cb" data-k="${k}" data-f="w" ${s.w?'checked':''} onchange="onCL(this)"></td>
+        <td class="cl-cb-col"><input type="checkbox" class="cl-cb" data-k="${k}" data-f="m" ${s.m?'checked':''} onchange="onCL(this)"></td>
+        <td><input type="text" class="cl-note" data-k="${k}" value="${esc(s.note)}" placeholder="הערה..." oninput="onCL(this)"></td>
+      </tr>`;
+    });
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function onCL(el) {
+  const k = el.dataset.k, f = el.dataset.f;
+  if (!aData[k]) aData[k] = {w:false, m:false, note:''};
+  if (f === 'w' || f === 'm') aData[k][f] = el.checked;
+  else aData[k].note = el.value;
+  scheduleAutoSaveA();
+}
+
+function scheduleAutoSaveA() {
+  setStatus('a-status', '...');
+  clearTimeout(aAutoSaveTimer);
+  aAutoSaveTimer = setTimeout(saveAppendixA, 1500);
+}
+
+async function saveAppendixA() {
+  if (!currentTrip || isLocal) { setStatus('a-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_a').set({
+      items: aData,
+      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setStatus('a-status', 'נשמר ✓');
+  } catch(e) { setStatus('a-status', 'שגיאה בשמירה'); console.error(e); }
+}
+
+async function loadAppendixA() {
+  aData = {};
+  if (!currentTrip || isLocal) { renderChecklistA(); fillAMeta(); return; }
+  try {
+    const doc = await formRef(currentTrip.id, 'appendix_a').get();
+    if (doc.exists && doc.data().items) aData = doc.data().items;
+  } catch(e) { console.error(e); }
+  renderChecklistA();
+  fillAMeta();
+  setStatus('a-status', '');
+}
+
+function fillAMeta() {
+  if (!currentTrip) return;
+  const c = document.getElementById('a-classes');
+  const l = document.getElementById('a-leader');
+  if (c) c.value = currentTrip.classes || '';
+  if (l) l.value = currentTrip.leaderName || '';
+}
+
+async function exportAppendixAPDF() {
+  if (!currentTrip) return;
+  const pdfEl = document.getElementById('pdf-appendix-a');
+
+  // Build table rows for PDF
+  let rows = '';
+  CHECKLIST_A.forEach(cat => {
+    rows += `<tr style="background:#d4edda">
+      <td style="text-align:center;font-weight:bold;padding:4px 3px;border:1px solid #999">${cat.n}</td>
+      <td colspan="4" style="font-weight:bold;padding:4px 6px;border:1px solid #999">${cat.s}${cat.sub ? ' — ' + cat.sub : ''}</td>
+      <td style="border:1px solid #999"></td>
+    </tr>`;
+    cat.items.forEach((item, i) => {
+      const s = aData[itemKey(cat.n, i)] || {w:false, m:false, note:''};
+      rows += `<tr>
+        <td style="padding:3px;border:1px solid #ccc"></td>
+        <td style="padding:3px 5px;border:1px solid #ccc;font-size:9.5px;line-height:1.35">${item.d}</td>
+        <td style="padding:3px;border:1px solid #ccc;text-align:center;font-size:13px">${s.w ? '✓' : ''}</td>
+        <td style="padding:3px;border:1px solid #ccc;text-align:center;font-size:13px">${s.m ? '✓' : ''}</td>
+        <td style="padding:3px 4px;border:1px solid #ccc;font-size:9px;color:#555">${item.r || ''}</td>
+        <td style="padding:3px 4px;border:1px solid #ccc;font-size:9px">${s.note || ''}</td>
+      </tr>`;
+    });
+  });
+
+  pdfEl.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:14px;font-size:10px;background:white">
+    <div style="text-align:center;margin-bottom:10px;border-bottom:2px solid #1b4332;padding-bottom:8px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:4px">נספח א׳ — טופס ביקורת יציאה לטיול</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
+      <thead><tr style="background:#1b4332;color:white">
+        <th style="padding:5px 3px;border:1px solid #999;font-size:9px;width:28px">מס"ד</th>
+        <th style="padding:5px 6px;border:1px solid #999;font-size:9px">פירוט הנושא</th>
+        <th style="padding:5px 3px;border:1px solid #999;font-size:9px;width:50px;text-align:center">שבוע<br>לפני</th>
+        <th style="padding:5px 3px;border:1px solid #999;font-size:9px;width:50px;text-align:center">בוקר<br>הטיול</th>
+        <th style="padding:5px 3px;border:1px solid #999;font-size:9px;width:55px">הפניה</th>
+        <th style="padding:5px 3px;border:1px solid #999;font-size:9px">הערות</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="display:flex;gap:30px;font-size:9.5px;border-top:1px solid #ccc;padding-top:8px">
+      <span>טיול / סיור כיתות: <strong>${esc(currentTrip.classes||'')}</strong></span>
+      <span>שם אחראי/ת טיול: <strong>${esc(currentTrip.leaderName||'')}</strong></span>
+      <span>חתימה: _______________________</span>
+    </div>
+    <div style="font-size:8px;color:#888;margin-top:5px">עותק של טופס זה יועבר חתום בבוקר הטיול ע"י אחראי/ת הטיול למנהל/ת ביה"ס</div>
+  </div>`;
+
+  pdfEl.style.display = 'block';
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const margin = 8, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2;
+    const contentH = pageH - margin * 2;
+
+    const canvas = await html2canvas(pdfEl, {scale:2, useCORS:true, backgroundColor:'#fff'});
+    pdfEl.style.display = 'none';
+
+    const imgW = contentW;
+    const imgH = canvas.height * imgW / canvas.width;
+    let yOff = 0, page = 0;
+
+    while (yOff < imgH) {
+      if (page > 0) pdf.addPage();
+      const sliceH = Math.min(contentH, imgH - yOff);
+      const srcY   = yOff  * canvas.width / imgW;
+      const srcH   = sliceH * canvas.width / imgW;
+      const slice  = document.createElement('canvas');
+      slice.width  = canvas.width;
+      slice.height = Math.ceil(srcH);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(srcY), canvas.width, Math.ceil(srcH), 0, 0, canvas.width, Math.ceil(srcH));
+      pdf.addImage(slice.toDataURL('image/jpeg',0.95),'JPEG', margin, margin, imgW, sliceH);
+      yOff += contentH;
+      page++;
+    }
+    pdf.save(`נספח-א-ביקורת-${currentTrip.name||'טיול'}.pdf`);
+  } catch(e) {
+    pdfEl.style.display = 'none';
+    alert('שגיאה בייצוא: ' + e.message);
+  }
+}
+
+function setStatus(id, msg) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = msg;
 }
 
 // ─── Modal helpers ────────────────────────────────────────────────────────────
