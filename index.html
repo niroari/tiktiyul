@@ -302,6 +302,7 @@ header h1{font-size:20px;font-weight:700}
         <button class="appendix-tab" onclick="showAppendix('c')" id="tab-c">ג׳ – כתב מינוי</button>
         <button class="appendix-tab" onclick="showAppendix('d')" id="tab-d">ד׳ – לוח זמנים</button>
         <button class="appendix-tab" onclick="showAppendix('e')" id="tab-e">ה׳ – טלפונים</button>
+        <button class="appendix-tab" onclick="showAppendix('team')" id="tab-team">צוות הטיול</button>
         <button class="appendix-tab" onclick="showAppendix('f')" id="tab-f">ו׳ – טבלת שליטה</button>
         <button class="appendix-tab" onclick="showAppendix('g')" id="tab-g">ז׳ – תלמידים</button>
         <button class="appendix-tab" onclick="showAppendix('h')" id="tab-h">ח׳ – אישור הורים</button>
@@ -543,6 +544,18 @@ header h1{font-size:20px;font-weight:700}
           <button class="btn btn-secondary" onclick="exportEPDF()">📄 ייצא PDF</button>
           <button class="btn btn-secondary" onclick="exportEPDF(true)">🖨️ הדפס</button>
           <span id="e-status" style="font-size:13px;color:#888"></span>
+        </div>
+      </div>
+
+      <!-- ══ צוות הטיול ══ -->
+      <div class="appendix-content" id="content-team">
+        <div class="appendix-title">צוות היוצא לטיול</div>
+        <p style="font-size:13px;color:#666;margin-bottom:16px">רשימת המורים והמלווים היוצאים לטיול. השמות ישמשו אוטומטית בנספח ו׳ (טבלת שליטה).</p>
+        <div id="team-table-wrap"></div>
+        <button class="btn btn-secondary" onclick="addTeamMember()" style="margin-top:12px">+ הוסף איש צוות</button>
+        <datalist id="team-names-list"></datalist>
+        <div style="margin-top:16px">
+          <span id="team-status" style="font-size:13px;color:#888"></span>
         </div>
       </div>
 
@@ -1270,6 +1283,7 @@ function showAppendix(id) {
   if (id === 'c') loadAppendixC();
   if (id === 'd') loadAppendixD();
   if (id === 'e') loadAppendixE();
+  if (id === 'team') loadTeam();
   if (id === 'f') loadAppendixF();
   if (id === 'g') loadAppendixG();
   if (id === 'h') loadAppendixH();
@@ -2089,6 +2103,91 @@ async function exportEPDF(printMode = false) {
 }
 
 // ─── Appendix ו — טבלת שליטה ─────────────────────────────────────────────────
+// ─── צוות הטיול ───────────────────────────────────────────────────────────────
+let teamMembers = [];
+let teamSaveTimer = null;
+
+async function loadTeam() {
+  teamMembers = [];
+  if (currentTrip && !isLocal) {
+    try {
+      const doc = await formRef(currentTrip.id, 'team').get();
+      if (doc.exists && doc.data().members) teamMembers = doc.data().members;
+    } catch(e) { console.error(e); }
+  }
+  renderTeam();
+  updateTeamDatalist();
+}
+
+function renderTeam() {
+  const wrap = document.getElementById('team-table-wrap');
+  if (!wrap) return;
+  if (teamMembers.length === 0) {
+    wrap.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0">לא הוספת אנשי צוות עדיין — לחץ "+ הוסף איש צוות"</div>';
+    return;
+  }
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:#1b4332;color:white;font-size:13px">
+      <th style="padding:8px 10px;border:1px solid #555;text-align:right">שם</th>
+      <th style="padding:8px 10px;border:1px solid #555;text-align:right">תפקיד</th>
+      <th style="padding:8px 10px;border:1px solid #555;text-align:right">טלפון</th>
+      <th style="padding:8px 10px;border:1px solid #555;width:36px"></th>
+    </tr></thead>
+    <tbody>${teamMembers.map((m, i) => `
+      <tr style="${i%2===0?'':'background:#f0f7f4'}">
+        <td style="border:1px solid #ddd;padding:2px"><input type="text" class="form-control" style="border:none;background:transparent;font-size:13px" value="${esc(m.name||'')}" placeholder="שם מלא" oninput="teamMembers[${i}].name=this.value;scheduleTeam()"></td>
+        <td style="border:1px solid #ddd;padding:2px"><input type="text" class="form-control" style="border:none;background:transparent;font-size:13px" value="${esc(m.role||'')}" placeholder="תפקיד" oninput="teamMembers[${i}].role=this.value;scheduleTeam()"></td>
+        <td style="border:1px solid #ddd;padding:2px"><input type="tel" class="form-control" style="border:none;background:transparent;font-size:13px;direction:ltr;text-align:left" value="${esc(m.phone||'')}" placeholder="050-0000000" oninput="teamMembers[${i}].phone=this.value;scheduleTeam()"></td>
+        <td style="border:1px solid #ddd;text-align:center"><button onclick="removeTeamMember(${i})" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:17px;line-height:1">✕</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function updateTeamDatalist() {
+  const dl = document.getElementById('team-names-list');
+  if (!dl) return;
+  dl.innerHTML = teamMembers.map(m => `<option value="${esc(m.name||'')}"></option>`).join('');
+}
+
+function addTeamMember() {
+  teamMembers.push({ name:'', role:'מורה', phone:'' });
+  renderTeam();
+  scheduleTeam();
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#team-table-wrap tbody tr');
+    if (rows.length) rows[rows.length-1].querySelector('input')?.focus();
+  }, 50);
+}
+
+function removeTeamMember(i) {
+  teamMembers.splice(i, 1);
+  renderTeam();
+  scheduleTeam();
+}
+
+function scheduleTeam() {
+  clearTimeout(teamSaveTimer);
+  teamSaveTimer = setTimeout(saveTeam, 1200);
+}
+
+async function saveTeam() {
+  updateTeamDatalist();
+  if (!currentTrip || isLocal) { setStatus('team-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'team').set({ members: teamMembers, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('team-status', 'נשמר ✓');
+  } catch(e) { setStatus('team-status', 'שגיאה'); console.error(e); }
+}
+
+function fillFCrewPhone(bi, ri, name) {
+  const member = teamMembers.find(m => m.name === name);
+  if (!member || !member.phone) return;
+  fBuses[bi].crew[ri].phone = member.phone;
+  const phoneInput = document.getElementById(`f-phone-${bi}-${ri}`);
+  if (phoneInput) phoneInput.value = member.phone;
+}
+
 const F_CREW_ROLES = ['מורה אחראי/ת', 'מורה נוסף', 'נהג', 'מאבטח/חובש', 'מדריך'];
 
 let fBuses  = [];
@@ -2128,8 +2227,9 @@ function renderFBuses() {
         <tbody>${F_CREW_ROLES.map((role, ri) => `<tr>
           <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
           <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
-            oninput="fBuses[${bi}].crew[${ri}].name=this.value;scheduleF()"></td>
-          <td><input type="text" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
+            ${ri<=1?'list="team-names-list"':''}
+            oninput="fBuses[${bi}].crew[${ri}].name=this.value;${ri<=1?`fillFCrewPhone(${bi},${ri},this.value);`:''}scheduleF()"></td>
+          <td><input type="text" id="f-phone-${bi}-${ri}" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
             oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
         </tr>`).join('')}</tbody>
       </table>
@@ -2174,10 +2274,11 @@ async function loadAppendixF() {
   fBuses = []; fActual = {};
   if (!currentTrip || isLocal) { renderFBuses(); renderFClassTable(); return; }
   try {
-    // Load bus/actual data and student list in parallel
-    const [fDoc, gDoc] = await Promise.all([
+    // Load bus/actual data, student list and team in parallel
+    const [fDoc, gDoc, tDoc] = await Promise.all([
       formRef(currentTrip.id, 'appendix_f').get(),
-      gStudents.length === 0 ? formRef(currentTrip.id, 'appendix_g').get() : Promise.resolve(null)
+      gStudents.length === 0 ? formRef(currentTrip.id, 'appendix_g').get() : Promise.resolve(null),
+      teamMembers.length === 0 ? formRef(currentTrip.id, 'team').get() : Promise.resolve(null)
     ]);
     if (fDoc.exists) {
       fBuses  = fDoc.data().buses  || [];
@@ -2185,6 +2286,10 @@ async function loadAppendixF() {
     }
     if (gDoc && gDoc.exists) {
       gStudents = (gDoc.data().students || []).map(s => ({ ...s, going: s.going !== false }));
+    }
+    if (tDoc && tDoc.exists && tDoc.data().members) {
+      teamMembers = tDoc.data().members;
+      updateTeamDatalist();
     }
   } catch(e) { console.error(e); }
   renderFBuses();
