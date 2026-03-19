@@ -1306,53 +1306,48 @@ async function exportBPDF() {
 
 // ─── Canvas drawing (shared) ─────────────────────────────────────────────────
 function setupCanvas(canvas, onEnd) {
-  // Size canvas to match its actual display pixels (no scaling math needed)
-  const rect = canvas.getBoundingClientRect();
-  if (rect.width > 10) {
-    canvas.width  = Math.round(rect.width);
-    canvas.height = Math.round(rect.height);
-  }
-
   const ctx = canvas.getContext('2d');
   ctx.strokeStyle = '#111';
   ctx.lineWidth   = 2.5;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
 
-  let drawing = false;
+  let drawing = false, lastX = 0, lastY = 0;
 
   function getXY(e) {
-    const r   = canvas.getBoundingClientRect();
-    const src = e.touches ? e.touches[0] : e;
-    return { x: src.clientX - r.left, y: src.clientY - r.top };
+    const rect = canvas.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return {
+      x: (src.clientX - rect.left) * (canvas.width  / rect.width),
+      y: (src.clientY - rect.top)  * (canvas.height / rect.height)
+    };
   }
 
-  function onDown(e) {
-    e.preventDefault();
+  canvas.addEventListener('mousedown', e => {
     drawing = true;
-    const {x,y} = getXY(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  }
-  function onMove(e) {
+    const p = getXY(e); lastX = p.x; lastY = p.y;
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (!drawing) return;
+    const p = getXY(e);
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    lastX = p.x; lastY = p.y;
+  });
+  canvas.addEventListener('mouseup',    () => { if (drawing) { drawing = false; if (onEnd) onEnd(); } });
+  canvas.addEventListener('mouseleave', () => { if (drawing) { drawing = false; if (onEnd) onEnd(); } });
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault(); drawing = true;
+    const p = getXY(e); lastX = p.x; lastY = p.y;
+  }, {passive:false});
+  canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     if (!drawing) return;
-    const {x,y} = getXY(e);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  }
-  function onUp() {
-    drawing = false;
-    if (onEnd) onEnd();
-  }
-
-  canvas.addEventListener('mousedown',  onDown, {passive:false});
-  canvas.addEventListener('mousemove',  onMove, {passive:false});
-  canvas.addEventListener('mouseup',    onUp);
-  canvas.addEventListener('mouseleave', onUp);
-  canvas.addEventListener('touchstart', onDown, {passive:false});
-  canvas.addEventListener('touchmove',  onMove, {passive:false});
-  canvas.addEventListener('touchend',   onUp);
+    const p = getXY(e);
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    lastX = p.x; lastY = p.y;
+  }, {passive:false});
+  canvas.addEventListener('touchend', () => { if (drawing) { drawing = false; if (onEnd) onEnd(); } });
 }
 function clearCanvas(id) {
   const c = document.getElementById(id);
