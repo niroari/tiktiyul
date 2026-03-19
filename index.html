@@ -683,9 +683,18 @@ header h1{font-size:20px;font-weight:700}
 
       <!-- ══ Appendix ט ══ -->
       <div class="appendix-content" id="content-i">
-        <div class="appendix-title">נספח ט׳ – ציוד החובה לטיול</div>
-        <div class="appendix-subtitle">רשימת ציוד עם אפשרות להתאמה</div>
-        <div class="coming-soon"><div class="coming-soon-icon">🔧</div><p>יבנה בשלב הבא</p></div>
+        <div class="appendix-title">נספח ט׳ – ציוד חובה לטיול</div>
+        <div class="appendix-subtitle">ערוך את הרשימה, מחק פריטים, או הוסף משלך</div>
+
+        <div id="i-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+        <button class="btn btn-secondary" onclick="addIItem()" style="margin-bottom:20px">+ הוסף פריט</button>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportIPDF(true)">🖨️ הדפס</button>
+          <button class="btn btn-secondary" onclick="exportIPDF(false)">⬇ ייצא PDF</button>
+          <span id="i-status" style="font-size:13px;color:#888"></span>
+        </div>
       </div>
 
       <!-- ══ Appendix י ══ -->
@@ -1100,6 +1109,7 @@ function showAppendix(id) {
   if (id === 'f') loadAppendixF();
   if (id === 'g') loadAppendixG();
   if (id === 'h') loadAppendixH();
+  if (id === 'i') loadAppendixI();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -2563,6 +2573,116 @@ function clearCanvas(id) {
 function canvasIsEmpty(canvas) {
   const d = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
   return !d.some(v=>v!==0);
+}
+
+// ─── Appendix ט — ציוד חובה ───────────────────────────────────────────────────
+const I_DEFAULTS = [
+  'כובע',
+  '3 ליטרים מים',
+  'נעלי הליכה סגורות',
+  'תיק גב עם כתפיות',
+  'מכנסיים ארוכים',
+];
+let iItems = []; // [{ text }]
+let iSaveTimer = null;
+
+function loadAppendixI() {
+  iItems = [];
+  if (!currentTrip || isLocal) { iItems = I_DEFAULTS.map(t => ({ text: t })); renderIList(); return; }
+  formRef(currentTrip.id, 'appendix_i').get().then(doc => {
+    if (doc.exists && doc.data().items && doc.data().items.length) {
+      iItems = doc.data().items;
+    } else {
+      iItems = I_DEFAULTS.map(t => ({ text: t }));
+    }
+    renderIList();
+    setStatus('i-status', '');
+  }).catch(e => { console.error(e); iItems = I_DEFAULTS.map(t => ({ text: t })); renderIList(); });
+}
+
+function renderIList() {
+  const el = document.getElementById('i-list');
+  el.innerHTML = iItems.map((item, idx) => `
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:#aaa;font-size:18px;cursor:grab;user-select:none">☰</span>
+      <input class="form-control" style="flex:1" value="${esc(item.text)}"
+        oninput="iItems[${idx}].text=this.value;scheduleI()">
+      <button onclick="removeIItem(${idx})"
+        style="background:none;border:none;color:#e57373;cursor:pointer;font-size:20px;line-height:1;padding:0 4px">✕</button>
+    </div>`).join('');
+}
+
+function addIItem() {
+  iItems.push({ text: '' });
+  renderIList();
+  // focus the new input
+  const inputs = document.querySelectorAll('#i-list input');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removeIItem(idx) {
+  iItems.splice(idx, 1);
+  renderIList();
+  scheduleI();
+}
+
+function scheduleI() {
+  clearTimeout(iSaveTimer);
+  iSaveTimer = setTimeout(saveAppendixI, 1200);
+}
+
+async function saveAppendixI() {
+  if (!currentTrip || isLocal) { setStatus('i-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'appendix_i').set({ items: iItems, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('i-status', 'נשמר ✓');
+  } catch(e) { setStatus('i-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportIPDF(printMode = false) {
+  const t = currentTrip || { name: '', school: '' };
+  const rows = iItems.map((item, i) => `
+    <tr style="${i % 2 === 0 ? '' : 'background:#f0f7f4'}">
+      <td style="padding:6px 10px;border:1px solid #ddd;font-size:11px;text-align:center;width:32px">${i + 1}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;font-size:11px">${esc(item.text)}</td>
+      <td style="padding:6px 10px;border:1px solid #ddd;width:50px"></td>
+    </tr>`).join('');
+
+  const html = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:24px 32px;background:white;width:760px">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:6px;margin-bottom:14px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:3px">נספח ט׳ — ציוד חובה לטיול</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name || '')}${t.school ? ' | ' + esc(t.school) : ''}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#2d6a4f;color:white">
+        <th style="padding:6px 10px;border:1px solid #999;font-size:11px;text-align:center">מס׳</th>
+        <th style="padding:6px 10px;border:1px solid #999;font-size:11px;text-align:right">פריט ציוד</th>
+        <th style="padding:6px 10px;border:1px solid #999;font-size:11px;text-align:center">✓</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+
+  if (printMode) { doPrint(html); return; }
+
+  const pdfEl = document.getElementById('pdf-appendix-g'); // reuse a spare hidden div
+  pdfEl.innerHTML = html;
+  pdfEl.style.display = 'block';
+  setStatus('i-status', 'מייצא...');
+  try {
+    const canvas = await html2canvas(pdfEl, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+    pdfEl.style.display = 'none';
+    pdfEl.innerHTML = '';
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const margin = 12, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2;
+    const imgH = canvas.height * contentW / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, contentW, imgH);
+    pdf.save(`נספח ט – ציוד חובה – ${t.name || 'טיול'}.pdf`);
+    setStatus('i-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; pdfEl.innerHTML = ''; setStatus('i-status', 'שגיאה'); console.error(e); }
 }
 
 // ─── Appendix ב signatures ────────────────────────────────────────────────────
