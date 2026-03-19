@@ -1818,10 +1818,11 @@ async function exportGPDF() {
     const rowBottomsDom = Array.from(pdfEl.querySelectorAll('tr'))
       .map(tr => tr.getBoundingClientRect().bottom - pdfTop);
 
+    const domWidth = pdfEl.offsetWidth; // capture BEFORE hiding (offsetWidth is 0 when display:none)
     const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
     pdfEl.style.display = 'none';
 
-    const domToCanvas = canvas.width / pdfEl.offsetWidth;
+    const domToCanvas = canvas.width / domWidth;
     const margin = 20, pageW = 210, pageH = 297;
     const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
     const contentH_canvas = contentH * (canvas.width / contentW);
