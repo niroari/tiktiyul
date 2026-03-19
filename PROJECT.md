@@ -45,11 +45,11 @@ users/{uid}/trips/{tripId}/forms/{formId}   — per-appendix data
 |----|-------|---------|--------|
 | א (a) | ביקורת לפני יציאה | Checklist: ~20 rows, each with "week before" + "morning of trip" checkboxes + notes | ✅ done |
 | ב (b) | אישור מנהל ורכז | Schedule table + notes + signatures (principal + coordinator) | ✅ done |
-| ג (c) | כתב מינוי | Simple appointment letter — classes, dates, area, principal signature | 🔧 next |
-| ד (d) | לוח זמנים | Dynamic table: day / time / activity+place / notes | pending |
-| ה (e) | טלפונים חיוניים | Two parts: essential contacts (fixed rows) + bus crew table (dynamic, per bus) | pending |
+| ג (c) | כתב מינוי | Simple appointment letter — classes, dates, area, principal signature | ✅ done |
+| ד (d) | לוח זמנים | Dynamic table: day / time / activity+place / notes | ✅ done |
+| ה (e) | טלפונים חיוניים | Two parts: essential contacts (fixed rows) + bus crew table (dynamic, per bus) | ✅ done |
 | ו (f) | טבלת שליטה | Bus control table: classes, teacher, driver, security, guide, counts | pending |
-| ז (g) | רשימת תלמידים | CSV import, display by class | pending |
+| ז (g) | רשימת תלמידים | Excel import, display by class | ✅ done |
 | ח (h) | אישור הורים | Upload a PDF specific to each trip (not a built form) | pending |
 | ט (i) | ציוד חובה | Static checklist + option to add custom items | pending |
 | י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes | pending |
@@ -142,3 +142,5 @@ Page 2:
 - Canvas signatures — shared `setupCanvas(canvas, onEnd)` function using mouse+touch events with `getBoundingClientRect` scaling factor (ported from Shelach Reports). Works for both in-form (teacher) and remote signing.
 - Remote signing via shared link — Firestore collection `tiyul_signatures/{uid}_{tripId}_{role}`, public page at `?tiyulsign=DOCID` (no login required). Coordinator + principal sign remotely; teacher signs in-form.
 - **Gotcha (temporal dead zone):** module-level `let` variables that are used by functions called from the boot code must be declared in the `// ─── State ───` section BEFORE the boot code. If declared later in the file, JavaScript silently crashes async functions that reference them — no visible error.
+- **Print buttons:** every appendix export function takes `printMode = false`. When `true`, it calls `doPrint(pdfEl.innerHTML)` instead of html2canvas. `doPrint(html)` puts the HTML in `#print-area` and calls `window.print()`. `@media print` CSS hides everything except `#print-area`. All future appendices must follow this same pattern.
+- **Appendix ז PDF page breaks:** multiple approaches tried (getBoundingClientRect row detection, domToCanvas ratio). All failed to reliably avoid cutting rows between pages. Decision: skip PDF export for ז; the print button works correctly since the browser handles page breaks natively.
