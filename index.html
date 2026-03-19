@@ -124,6 +124,25 @@ header h1{font-size:20px;font-weight:700}
 .sched-del{background:none;border:none;color:#e57373;cursor:pointer;font-size:18px;padding:0 4px;line-height:1}
 .sched-del:hover{color:#c62828}
 
+/* ── Signature panels ── */
+.sig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+.sig-panel{border:1.5px solid #ddd;border-radius:10px;padding:14px;background:#fafffe}
+.sig-panel-title{font-weight:700;font-size:13px;color:#1b4332;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #eee}
+.sig-canvas{border:1.5px dashed #bbb;border-radius:6px;cursor:crosshair;width:100%;height:90px;background:white;display:block;touch-action:none}
+.sig-img-box{border:1px solid #e0e0e0;border-radius:6px;background:white;padding:4px;margin-bottom:8px;min-height:60px;display:flex;align-items:center;justify-content:center}
+.sig-img-box img{max-width:100%;max-height:80px;display:block}
+.sig-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;margin-bottom:8px}
+.sig-badge.none{background:#f0f0f0;color:#888}
+.sig-badge.pending{background:#fff3cd;color:#856404}
+.sig-badge.signed{background:#d4edda;color:#155724}
+/* Sign page */
+#signPage{display:none;min-height:100vh;background:linear-gradient(135deg,#1b4332,#2d6a4f);align-items:center;justify-content:center}
+.sign-card{background:white;border-radius:16px;padding:32px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
+.sign-card h2{font-size:20px;color:#1b4332;margin-bottom:6px}
+.sign-card .sign-meta{font-size:13px;color:#666;margin-bottom:20px;line-height:1.6}
+.sign-card canvas{border:1.5px dashed #bbb;border-radius:8px;cursor:crosshair;width:100%;height:120px;background:#fafffe;display:block;margin-bottom:10px;touch-action:none}
+@media(max-width:600px){.sig-grid{grid-template-columns:1fr}}
+
 /* ── Checklist (appendix א) ── */
 .cl-table{width:100%;border-collapse:collapse;font-size:14px}
 .cl-table thead th{background:#1b4332;color:white;padding:9px 8px;text-align:right;font-size:13px;font-weight:600;border:1px solid #145229}
@@ -388,7 +407,38 @@ header h1{font-size:20px;font-weight:700}
           <textarea class="form-control" id="b-principal-notes" rows="3" placeholder="הערות מנהל/ת..." oninput="scheduleSaveB()"></textarea>
         </div>
 
-        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center">
+        <!-- Signatures -->
+        <div class="section-title">חתימות</div>
+        <div class="sig-grid">
+          <!-- Teacher — signs directly -->
+          <div class="sig-panel">
+            <div class="sig-panel-title">✍️ מורה אחראי/ת</div>
+            <div id="b-teacher-signed" style="display:none">
+              <div class="sig-img-box"><img id="b-teacher-sig-img"></div>
+              <button class="btn btn-danger" style="font-size:12px;width:100%" onclick="clearBTeacherSig()">מחק חתימה</button>
+            </div>
+            <div id="b-teacher-unsigned">
+              <canvas id="b-teacher-canvas" class="sig-canvas"></canvas>
+              <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%" onclick="clearCanvas('b-teacher-canvas')">נקה</button>
+            </div>
+          </div>
+          <!-- Coordinator — remote link -->
+          <div class="sig-panel">
+            <div class="sig-panel-title">✍️ רכז/ת טיולים</div>
+            <div id="b-coordinator-status"></div>
+            <button class="btn btn-secondary" style="font-size:12px;margin-top:8px;width:100%" id="b-coordinator-send-btn" onclick="sendBSigLink('coordinator')">שלח לחתימה ↗</button>
+            <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%;display:none" id="b-coordinator-refresh-btn" onclick="refreshBSig('coordinator')">🔄 בדוק אם חתם/ה</button>
+          </div>
+          <!-- Principal — remote link -->
+          <div class="sig-panel">
+            <div class="sig-panel-title">✍️ מנהל/ת ביה"ס</div>
+            <div id="b-principal-status"></div>
+            <button class="btn btn-secondary" style="font-size:12px;margin-top:8px;width:100%" id="b-principal-send-btn" onclick="sendBSigLink('principal')">שלח לחתימה ↗</button>
+            <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%;display:none" id="b-principal-refresh-btn" onclick="refreshBSig('principal')">🔄 בדוק אם חתם/ה</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportBPDF()">📄 ייצא PDF</button>
           <span id="b-status" style="font-size:13px;color:#888"></span>
         </div>
@@ -538,6 +588,44 @@ header h1{font-size:20px;font-weight:700}
 <!-- Toast notification -->
 <div class="toast" id="toast"></div>
 
+<!-- ════ SIGN PAGE (opened via ?tiyulsign=) ════ -->
+<div id="signPage">
+  <div class="sign-card">
+    <div style="font-size:40px;margin-bottom:10px">✍️</div>
+    <h2 id="sign-role-title">חתימה</h2>
+    <div class="sign-meta" id="sign-meta"></div>
+    <canvas id="sign-canvas" width="360" height="120"></canvas>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <button class="btn btn-secondary" style="flex:1;font-size:13px" onclick="clearCanvas('sign-canvas')">נקה</button>
+    </div>
+    <button class="btn btn-primary btn-full" id="sign-submit-btn" onclick="submitSignature()">חתום ושלח ✓</button>
+    <div id="sign-error" class="error-msg" style="display:none;margin-top:10px"></div>
+    <div id="sign-success" style="display:none;margin-top:16px;color:#155724;background:#d4edda;padding:12px;border-radius:8px;font-size:14px">✓ החתימה נשמרה בהצלחה</div>
+  </div>
+</div>
+
+<!-- ════ SHARE MODAL ════ -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title" id="share-title">שתף לחתימה</div>
+      <button class="modal-close" onclick="closeModal('shareModal')">×</button>
+    </div>
+    <p style="font-size:13px;color:#555;margin-bottom:16px" id="share-desc"></p>
+    <div class="form-group">
+      <label>קישור לחתימה</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="form-control" id="share-link" readonly style="direction:ltr;font-size:12px">
+        <button class="btn btn-secondary" style="white-space:nowrap;font-size:13px" onclick="copyShareLink()">העתק</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn" id="share-wa-btn" style="background:#25d366;color:white;flex:1" onclick="shareWhatsApp()">WhatsApp</button>
+      <button class="btn" id="share-gmail-btn" style="background:#ea4335;color:white;flex:1" onclick="shareGmail()">Gmail</button>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden PDF render area -->
 <div id="pdf-appendix-a" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-b" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
@@ -557,6 +645,7 @@ const firebaseConfig = {
 
 // Local / file:// bypass — no login needed when running from disk
 const isLocal = location.protocol === 'file:' || location.hostname === 'localhost';
+const signDocId = new URLSearchParams(location.search).get('tiyulsign');
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -569,7 +658,12 @@ let editingTripId = null;
 let trips = {};
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-if (isLocal) {
+if (signDocId) {
+  // Public sign page — no login needed
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('signPage').style.display    = 'flex';
+  loadSignPage(signDocId);
+} else if (isLocal) {
   // Skip login in local preview
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -1065,26 +1159,41 @@ function fillBMeta() {
 
 async function loadAppendixB() {
   bRows = [];
-  if (!currentTrip || isLocal) { renderSchedTable(); fillBMeta(); return; }
+  bSigs = { teacher:null, coordinator:null, principal:null };
+  bSigStatus = { coordinator:'none', principal:'none' };
+  if (!currentTrip || isLocal) {
+    renderSchedTable(); fillBMeta();
+    renderBTeacherSig(); renderBRemoteSig('coordinator'); renderBRemoteSig('principal');
+    return;
+  }
   try {
     const doc = await formRef(currentTrip.id, 'appendix_b').get();
     if (doc.exists) {
       const d = doc.data();
       bRows = d.rows || [];
-      document.getElementById('b-weapons').value = d.weapons || '';
-      document.getElementById('b-parents').value = d.parents || '';
-      document.getElementById('b-phone').value   = d.phone   || '';
-      document.getElementById('b-leader-notes').value    = d.leaderNotes    || '';
-      document.getElementById('b-principal-notes').value = d.principalNotes || '';
+      document.getElementById('b-weapons').value          = d.weapons        || '';
+      document.getElementById('b-parents').value          = d.parents        || '';
+      document.getElementById('b-phone').value            = d.phone          || '';
+      document.getElementById('b-leader-notes').value     = d.leaderNotes    || '';
+      document.getElementById('b-principal-notes').value  = d.principalNotes || '';
+      bSigs.teacher = d.teacherSig || null;
     }
   } catch(e) { console.error(e); }
   fillBMeta();
   renderSchedTable();
+  renderBTeacherSig();
+  renderBRemoteSig('coordinator');
+  renderBRemoteSig('principal');
+  loadBSigs();
   setStatus('b-status', '');
 }
 
 async function saveAppendixB() {
   if (!currentTrip || isLocal) { setStatus('b-status', 'נשמר ✓'); return; }
+  // Capture teacher sig from canvas if not yet saved
+  const canvas = document.getElementById('b-teacher-canvas');
+  if (canvas && !canvasIsEmpty(canvas)) bSigs.teacher = canvas.toDataURL('image/png');
+
   const data = {
     rows:           bRows,
     weapons:        document.getElementById('b-weapons').value,
@@ -1092,6 +1201,7 @@ async function saveAppendixB() {
     phone:          document.getElementById('b-phone').value,
     leaderNotes:    document.getElementById('b-leader-notes').value,
     principalNotes: document.getElementById('b-principal-notes').value,
+    teacherSig:     bSigs.teacher || null,
     savedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   try {
@@ -1158,13 +1268,15 @@ async function exportBPDF() {
     <div style="font-weight:bold;font-size:9.5px;margin-bottom:3px">הערות מנהל/ת ביה"ס</div>
     <div style="border:1px solid #ccc;padding:6px;min-height:40px;font-size:9.5px;margin-bottom:12px;white-space:pre-wrap">${esc(pNotes)}</div>
 
-    <div style="display:flex;justify-content:space-between;font-size:9.5px;border-top:1px solid #ccc;padding-top:10px">
-      <div>חתימת המורה האחראי/ת על הטיול: _______________________</div>
-      <div></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:9.5px;margin-top:20px">
-      <div>אישור רכז/ת הטיולים: _______________________</div>
-      <div>אישור מנהל/ת ביה"ס: _______________________</div>
+    <div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid #ccc;padding-top:10px">
+      ${['teacher','coordinator','principal'].map((role,i) => {
+        const labels = ['מורה אחראי/ת','רכז/ת הטיולים','מנהל/ת ביה"ס'];
+        const sig = bSigs[role];
+        return `<div style="flex:1;text-align:center;font-size:9px">
+          <div style="font-weight:bold;margin-bottom:4px">${labels[i]}</div>
+          ${sig ? `<img src="${sig}" style="max-height:50px;max-width:100%;display:block;margin:0 auto">` : '<div style="height:50px;border-bottom:1px solid #aaa;margin:0 8px"></div>'}
+        </div>`;
+      }).join('')}
     </div>
   </div>`;
 
@@ -1190,6 +1302,233 @@ async function exportBPDF() {
     }
     pdf.save(`נספח-ב-אישור-תוכנית-${t.name||'טיול'}.pdf`);
   } catch(e) { pdfEl.style.display = 'none'; alert('שגיאה: ' + e.message); }
+}
+
+// ─── Canvas drawing (shared) ─────────────────────────────────────────────────
+function setupCanvas(canvas, onEnd) {
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  let drawing = false;
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const s = canvas.width / r.width;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * s, y: (src.clientY - r.top) * s };
+  }
+  canvas.addEventListener('mousedown',  e => { drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+  canvas.addEventListener('mousemove',  e => { if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+  canvas.addEventListener('mouseup',    () => { drawing=false; if(onEnd)onEnd(); });
+  canvas.addEventListener('mouseleave', () => { drawing=false; });
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); },{passive:false});
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); },{passive:false});
+  canvas.addEventListener('touchend',   () => { drawing=false; if(onEnd)onEnd(); });
+}
+function clearCanvas(id) {
+  const c = document.getElementById(id);
+  if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);
+}
+function canvasIsEmpty(canvas) {
+  const d = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  return !d.some(v=>v!==0);
+}
+
+// ─── Appendix ב signatures ────────────────────────────────────────────────────
+let bSigs = { teacher:null, coordinator:null, principal:null };
+let bSigStatus = { coordinator:'none', principal:'none' };
+let currentShareRole = null;
+
+const ROLE_LABELS = { coordinator:'רכז/ת הטיולים', principal:'מנהל/ת ביה"ס' };
+
+function sigDocId(role) {
+  if (!currentUser || !currentTrip) return null;
+  return `${currentUser.uid}_${currentTrip.id}_${role}`;
+}
+function sigsRef() { return db.collection('tiyul_signatures'); }
+
+function initBTeacherCanvas() {
+  const canvas = document.getElementById('b-teacher-canvas');
+  if (!canvas) return;
+  canvas.width  = canvas.offsetWidth  || 300;
+  canvas.height = 100;
+  setupCanvas(canvas, () => saveBTeacherSig());
+}
+
+function saveBTeacherSig() {
+  const canvas = document.getElementById('b-teacher-canvas');
+  if (!canvas || canvasIsEmpty(canvas)) return;
+  bSigs.teacher = canvas.toDataURL('image/png');
+  saveAppendixB();
+}
+
+function clearBTeacherSig() {
+  bSigs.teacher = null;
+  document.getElementById('b-teacher-signed').style.display   = 'none';
+  document.getElementById('b-teacher-unsigned').style.display = '';
+  clearCanvas('b-teacher-canvas');
+  saveAppendixB();
+}
+
+function renderBTeacherSig() {
+  if (bSigs.teacher) {
+    document.getElementById('b-teacher-sig-img').src       = bSigs.teacher;
+    document.getElementById('b-teacher-signed').style.display   = '';
+    document.getElementById('b-teacher-unsigned').style.display = 'none';
+  } else {
+    document.getElementById('b-teacher-signed').style.display   = 'none';
+    document.getElementById('b-teacher-unsigned').style.display = '';
+    setTimeout(() => initBTeacherCanvas(), 50);
+  }
+}
+
+function renderBRemoteSig(role) {
+  const statusEl = document.getElementById(`b-${role}-status`);
+  const sendBtn  = document.getElementById(`b-${role}-send-btn`);
+  const refBtn   = document.getElementById(`b-${role}-refresh-btn`);
+  if (!statusEl) return;
+  const st = bSigStatus[role];
+  const sig = bSigs[role];
+  if (st === 'signed' && sig) {
+    statusEl.innerHTML = `<span class="sig-badge signed">✓ חתם/ה</span><div class="sig-img-box"><img src="${sig}" style="max-width:100%;max-height:70px"></div>`;
+    sendBtn.textContent = 'שלח שוב ↗';
+    refBtn.style.display = 'none';
+  } else if (st === 'pending') {
+    statusEl.innerHTML = `<span class="sig-badge pending">⏳ ממתין לחתימה</span>`;
+    sendBtn.textContent = 'שלח שוב ↗';
+    refBtn.style.display = '';
+  } else {
+    statusEl.innerHTML = `<span class="sig-badge none">לא נשלח עדיין</span>`;
+    sendBtn.textContent = 'שלח לחתימה ↗';
+    refBtn.style.display = 'none';
+  }
+}
+
+async function loadBSigs() {
+  if (!currentTrip || isLocal) return;
+  for (const role of ['coordinator','principal']) {
+    try {
+      const doc = await sigsRef().doc(sigDocId(role)).get();
+      if (doc.exists) {
+        const d = doc.data();
+        bSigStatus[role] = d.status || 'pending';
+        bSigs[role] = d.signature || null;
+      }
+    } catch(e) { console.error(e); }
+    renderBRemoteSig(role);
+  }
+}
+
+async function sendBSigLink(role) {
+  if (!currentTrip) return;
+  const t = currentTrip;
+  const docId = sigDocId(role);
+  const data = {
+    uid: currentUser.uid, tripId: currentTrip.id,
+    role, roleName: ROLE_LABELS[role],
+    tripName: t.name, schoolName: t.school, leaderName: t.leaderName||'',
+    status: 'pending', signature: null,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (!isLocal) {
+    try { await sigsRef().doc(docId).set(data); } catch(e) { alert('שגיאה: ' + e.message); return; }
+  }
+  bSigStatus[role] = 'pending';
+  renderBRemoteSig(role);
+  // Show share modal
+  currentShareRole = role;
+  const url = `${location.origin}${location.pathname}?tiyulsign=${docId}`;
+  document.getElementById('share-title').textContent = `שלח לחתימה — ${ROLE_LABELS[role]}`;
+  document.getElementById('share-desc').textContent  = `שלח את הקישור הבא ל${ROLE_LABELS[role]} לחתימה על טיול "${t.name}"`;
+  document.getElementById('share-link').value = url;
+  openModal('shareModal');
+}
+
+async function refreshBSig(role) {
+  if (!currentTrip || isLocal) return;
+  try {
+    const doc = await sigsRef().doc(sigDocId(role)).get();
+    if (doc.exists) {
+      const d = doc.data();
+      bSigStatus[role] = d.status || 'pending';
+      bSigs[role] = d.signature || null;
+    }
+    renderBRemoteSig(role);
+    if (bSigStatus[role] === 'signed') showToast(`✓ ${ROLE_LABELS[role]} חתם/ה`);
+    else showToast('עדיין ממתין לחתימה');
+  } catch(e) { console.error(e); }
+}
+
+// Share modal helpers
+function copyShareLink() {
+  const el = document.getElementById('share-link');
+  navigator.clipboard.writeText(el.value).then(() => showToast('הקישור הועתק ✓'));
+}
+function shareWhatsApp() {
+  const url = document.getElementById('share-link').value;
+  const t = currentTrip;
+  const msg = `שלום, אבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על טיול "${t?.name||''}".\nלחץ/י על הקישור לחתימה:\n${url}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+function shareGmail() {
+  const url = document.getElementById('share-link').value;
+  const t = currentTrip;
+  const subject = `בקשת חתימה — ${ROLE_LABELS[currentShareRole]} — טיול "${t?.name||''}"`;
+  const body = `שלום,\nאבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על תיק הטיול "${t?.name||''}".\n\nלחץ/י על הקישור לחתימה:\n${url}`;
+  window.open(`https://mail.google.com/mail/?view=cm&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+}
+
+// ─── Sign page (public — no login) ────────────────────────────────────────────
+let signCurrentDocId = null;
+
+async function loadSignPage(docId) {
+  signCurrentDocId = docId;
+  try {
+    const doc = await db.collection('tiyul_signatures').doc(docId).get();
+    if (!doc.exists) {
+      document.getElementById('sign-meta').textContent = 'הקישור אינו תקף.';
+      document.getElementById('sign-submit-btn').style.display = 'none';
+      return;
+    }
+    const d = doc.data();
+    document.getElementById('sign-role-title').textContent = d.roleName || 'חתימה';
+    document.getElementById('sign-meta').innerHTML =
+      `טיול: <strong>${esc(d.tripName||'')}</strong><br>בית ספר: <strong>${esc(d.schoolName||'')}</strong><br>אחראי/ת: <strong>${esc(d.leaderName||'')}</strong>`;
+    if (d.status === 'signed') {
+      document.getElementById('sign-success').style.display = '';
+      document.getElementById('sign-submit-btn').style.display = 'none';
+    } else {
+      const canvas = document.getElementById('sign-canvas');
+      canvas.width = canvas.offsetWidth || 360;
+      setupCanvas(canvas, null);
+    }
+  } catch(e) {
+    document.getElementById('sign-meta').textContent = 'שגיאה בטעינה: ' + e.message;
+  }
+}
+
+async function submitSignature() {
+  const canvas = document.getElementById('sign-canvas');
+  if (canvasIsEmpty(canvas)) {
+    document.getElementById('sign-error').textContent = 'נא לחתום לפני השליחה';
+    document.getElementById('sign-error').style.display = '';
+    return;
+  }
+  document.getElementById('sign-error').style.display = 'none';
+  document.getElementById('sign-submit-btn').disabled = true;
+  document.getElementById('sign-submit-btn').textContent = 'שומר...';
+  try {
+    await db.collection('tiyul_signatures').doc(signCurrentDocId).update({
+      signature: canvas.toDataURL('image/png'),
+      status: 'signed',
+      signedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('sign-success').style.display = '';
+    document.getElementById('sign-submit-btn').style.display = 'none';
+  } catch(e) {
+    document.getElementById('sign-error').textContent = 'שגיאה בשמירה: ' + e.message;
+    document.getElementById('sign-error').style.display = '';
+    document.getElementById('sign-submit-btn').disabled = false;
+    document.getElementById('sign-submit-btn').textContent = 'חתום ושלח ✓';
+  }
 }
 
 function setStatus(id, msg) {
