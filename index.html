@@ -1496,7 +1496,6 @@ function setupCanvas(canvas, onEnd) {
   }
 
   canvas.addEventListener('mousedown', e => {
-    if (dbg) dbg.textContent = 'mousedown ✓ — גורר לחתימה';
     isDrawing = true;
     const p = sigPos(e); lastX = p.x; lastY = p.y;
   });
@@ -1512,7 +1511,6 @@ function setupCanvas(canvas, onEnd) {
 
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
-    if (dbg) dbg.textContent = 'touchstart ✓ — גורר לחתימה';
     isDrawing = true;
     const p = sigPos(e); lastX = p.x; lastY = p.y;
   }, {passive: false});
