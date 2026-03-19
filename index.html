@@ -2215,7 +2215,7 @@ function renderDashboard() {
   const staffCount  = teamMembers.length;
   const busCount    = fBuses.length;
   const totalEscorts = fBuses.reduce((s,b)=>(s+(parseInt(b.escorts)||0)),0);
-  const totalPax    = students.length + totalEscorts;
+  const totalPax    = students.length + staffCount;
 
   const from = t.fromDate ? new Date(t.fromDate) : null;
   const to   = t.toDate   ? new Date(t.toDate)   : null;
