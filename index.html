@@ -842,6 +842,33 @@ header h1{font-size:20px;font-weight:700}
           </table>
         </div>
 
+        <!-- Signatures -->
+        <div class="section-title">חתימות</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;margin-bottom:20px">
+          <div class="sig-panel">
+            <div class="sig-panel-title">✍️ אחראי/ת טיול</div>
+            <div id="masa-leader-signed" style="display:none">
+              <div class="sig-img-box"><img id="masa-leader-sig-img"></div>
+              <button class="btn btn-danger" style="font-size:12px;width:100%" onclick="clearMasaSig('leader')">מחק חתימה</button>
+            </div>
+            <div id="masa-leader-unsigned">
+              <canvas id="masa-leader-canvas" class="sig-canvas"></canvas>
+              <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%" onclick="clearCanvas('masa-leader-canvas')">נקה</button>
+            </div>
+          </div>
+          <div class="sig-panel">
+            <div class="sig-panel-title">✍️ מנהל/ת ביה"ס</div>
+            <div id="masa-principal-signed" style="display:none">
+              <div class="sig-img-box"><img id="masa-principal-sig-img"></div>
+              <button class="btn btn-danger" style="font-size:12px;width:100%" onclick="clearMasaSig('principal')">מחק חתימה</button>
+            </div>
+            <div id="masa-principal-unsigned">
+              <canvas id="masa-principal-canvas" class="sig-canvas"></canvas>
+              <button class="btn btn-secondary" style="font-size:12px;margin-top:6px;width:100%" onclick="clearCanvas('masa-principal-canvas')">נקה</button>
+            </div>
+          </div>
+        </div>
+
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportMasaPDF(true)">🖨️ הדפס</button>
           <button class="btn btn-secondary" onclick="exportMasaPDF(false)">⬇ ייצא PDF</button>
@@ -3013,6 +3040,7 @@ function masaDefault() {
     scheduleRows: Array(7).fill(null).map(()=>({day:'',date:'',startTime:'',from:'',route:'',endTime:'',evac1:'',evac2:'',stay:'',evening:''})),
     alternatives:'',
     roles: Array(6).fill(null).map(()=>({name:'',id:'',phone:'',cert:''})),
+    leaderSig: null, principalSig: null,
   };
 }
 
@@ -3050,6 +3078,7 @@ async function loadMasa() {
     } catch(e) { console.error(e); }
   }
   renderMasaForm();
+  setupMasaCanvases();
   setStatus('masa-status', '');
 }
 
@@ -3075,6 +3104,7 @@ function renderMasaForm() {
   document.getElementById('masa-dispersal-other-wrap').style.display = d.dispersal === 'd' ? '' : 'none';
   renderMasaSchedule();
   renderMasaRoles();
+  renderMasaSigs();
 }
 
 function renderMasaSchedule() {
@@ -3226,8 +3256,12 @@ function buildMasaPage2() {
   ${alt}
   ${roles}
   ${f(637,511,764,523,d.date,'center',9)}
-  ${f(303,511,430,523,d.leader,'right',8)}
-  ${f(60,511,187,523,d.principal,'right',8)}
+  ${d.leaderSig
+    ? `<div style="position:absolute;left:303px;top:498px;width:127px;height:30px;background:white;display:flex;align-items:center;justify-content:center"><img src="${d.leaderSig}" style="max-width:100%;max-height:100%;object-fit:contain"></div>`
+    : f(303,511,430,523,d.leader,'right',8)}
+  ${d.principalSig
+    ? `<div style="position:absolute;left:60px;top:498px;width:127px;height:30px;background:white;display:flex;align-items:center;justify-content:center"><img src="${d.principalSig}" style="max-width:100%;max-height:100%;object-fit:contain"></div>`
+    : f(60,511,187,523,d.principal,'right',8)}
   </div>`;
 }
 
@@ -3265,6 +3299,53 @@ async function exportMasaPDF(printMode=false) {
     el2.style.display='none'; el2.innerHTML='';
     setStatus('masa-status','שגיאה'); console.error(e);
   }
+}
+
+// ─── הודעת מסע signatures ─────────────────────────────────────────────────────
+function renderMasaSigs() {
+  ['leader','principal'].forEach(role => {
+    const sig = masaData[role+'Sig'];
+    const signed   = document.getElementById('masa-'+role+'-signed');
+    const unsigned = document.getElementById('masa-'+role+'-unsigned');
+    if (!signed) return;
+    if (sig) {
+      document.getElementById('masa-'+role+'-sig-img').src = sig;
+      signed.style.display   = '';
+      unsigned.style.display = 'none';
+    } else {
+      signed.style.display   = 'none';
+      unsigned.style.display = '';
+    }
+  });
+}
+
+function setupMasaCanvases() {
+  ['leader','principal'].forEach(role => {
+    if (!masaData[role+'Sig']) {
+      const canvas = document.getElementById('masa-'+role+'-canvas');
+      if (canvas) setupCanvas(canvas, () => saveMasaSig(role));
+    }
+  });
+}
+
+function saveMasaSig(role) {
+  const canvas = document.getElementById('masa-'+role+'-canvas');
+  if (!canvas || canvasIsEmpty(canvas)) return;
+  masaData[role+'Sig'] = canvas.toDataURL('image/png');
+  document.getElementById('masa-'+role+'-sig-img').src = masaData[role+'Sig'];
+  document.getElementById('masa-'+role+'-signed').style.display   = '';
+  document.getElementById('masa-'+role+'-unsigned').style.display = 'none';
+  scheduleMasa();
+}
+
+function clearMasaSig(role) {
+  masaData[role+'Sig'] = null;
+  document.getElementById('masa-'+role+'-signed').style.display   = 'none';
+  document.getElementById('masa-'+role+'-unsigned').style.display = '';
+  clearCanvas('masa-'+role+'-canvas');
+  const canvas = document.getElementById('masa-'+role+'-canvas');
+  if (canvas) setupCanvas(canvas, () => saveMasaSig(role));
+  scheduleMasa();
 }
 
 // ─── Appendix ב signatures ────────────────────────────────────────────────────
