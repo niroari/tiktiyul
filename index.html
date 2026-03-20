@@ -313,6 +313,7 @@ header h1{font-size:20px;font-weight:700}
         <button class="appendix-tab" onclick="showAppendix('i')" id="tab-i">ט׳ – ציוד חובה</button>
         <button class="appendix-tab" onclick="showAppendix('j')" id="tab-j">י׳ – מגבלות רפואיות</button>
         <button class="appendix-tab" onclick="showAppendix('masa')" id="tab-masa">הודעת מסע</button>
+        <button class="appendix-tab" onclick="showAppendix('rooms')" id="tab-rooms">חלוקת חדרים</button>
       </div>
 
       <!-- ══ Appendix א – ביקורת לפני יציאה ══ -->
@@ -894,6 +895,48 @@ header h1{font-size:20px;font-weight:700}
         </div>
       </div>
 
+      <!-- ══ חלוקת חדרים ══ -->
+      <div class="appendix-content" id="content-rooms">
+        <div class="appendix-title">חלוקת חדרים</div>
+        <div class="appendix-subtitle">חלוקת תלמידים לחדרים באכסנייה — הפרדה בין בנים לבנות</div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px">
+          <label style="font-size:13px;font-weight:600">גודל חדר מועדף:</label>
+          <div style="display:flex;gap:10px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="rooms-size" value="4" onchange="roomsPreferredSize=4"> 4</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="rooms-size" value="5" onchange="roomsPreferredSize=5" checked> 5</label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="rooms-size" value="6" onchange="roomsPreferredSize=6"> 6</label>
+          </div>
+          <button class="btn btn-secondary" onclick="autoAssignRooms()">⚡ חלק אוטומטית</button>
+          <button class="btn btn-secondary" onclick="addRooms('ז')">+ חדר בנים</button>
+          <button class="btn btn-secondary" onclick="addRooms('נ')">+ חדר בנות</button>
+          <span id="rooms-status" style="font-size:13px;color:#888"></span>
+        </div>
+
+        <!-- Unassigned warning -->
+        <div id="rooms-unassigned-wrap" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+          <strong>תלמידים ללא חדר:</strong> <span id="rooms-unassigned-list"></span>
+        </div>
+
+        <!-- Two-column: boys | girls -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#1565c0;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1565c0">בנים</div>
+            <div id="rooms-boys-wrap"></div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#c2185b;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #c2185b">בנות</div>
+            <div id="rooms-girls-wrap"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportRoomsPDF(true)">🖨️ הדפס</button>
+          <button class="btn btn-secondary" onclick="exportRoomsPDF(false)">⬇ ייצא PDF</button>
+        </div>
+      </div>
+
     </div><!-- /tripDetailView -->
   </div><!-- /container -->
 </div><!-- /app -->
@@ -1038,6 +1081,7 @@ header h1{font-size:20px;font-weight:700}
 <div id="pdf-appendix-g" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-i" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-j" style="display:none;position:fixed;left:-9999px;top:0;width:1122px"></div>
+<div id="pdf-rooms" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-masa-p1" style="display:none;position:fixed;left:-9999px;top:0;width:842px"></div>
 <div id="pdf-masa-p2" style="display:none;position:fixed;left:-9999px;top:0;width:842px"></div>
 
@@ -1070,6 +1114,10 @@ let currentTripOwnerUid = null;
 let editingTripId       = null;
 let trips = {};
 let signCurrentDocId = null;
+let roomsData          = []; // [{ number:'', gender:'ז'|'נ', students:[{id,last,first,class,gender}] }]
+let roomsPreferredSize = 5;
+let roomsSaveTimer     = null;
+let roomsDragSrc       = null; // { studentId, fromRoomIdx }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 if (signDocId) {
@@ -1350,6 +1398,7 @@ function showAppendix(id) {
   if (id === 'i') loadAppendixI();
   if (id === 'j') loadAppendixJ();
   if (id === 'masa') loadMasa();
+  if (id === 'rooms') loadRooms();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -4190,6 +4239,249 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── חלוקת חדרים ─────────────────────────────────────────────────────────────
+
+async function ensureStudentsLoaded() {
+  if (gStudents.length > 0) return;
+  if (!currentTrip || isLocal) return;
+  try {
+    const doc = await formRef(currentTrip.id, 'appendix_g').get();
+    if (doc.exists) gStudents = (doc.data().students || []).map(s => ({ ...s, going: s.going !== false }));
+  } catch(e) { console.error(e); }
+}
+
+async function loadRooms() {
+  roomsData = [];
+  await ensureStudentsLoaded();
+  if (!currentTrip || isLocal) { renderRooms(); return; }
+  try {
+    const doc = await formRef(currentTrip.id, 'rooms').get();
+    if (doc.exists && doc.data().rooms) roomsData = doc.data().rooms;
+  } catch(e) { console.error(e); }
+  renderRooms();
+}
+
+async function autoAssignRooms() {
+  await ensureStudentsLoaded();
+  const going = gStudents.filter(s => s.going !== false);
+  if (going.length === 0) {
+    alert('אין תלמידים ברשימה. עבור לנספח ז׳ ויבא את רשימת התלמידים קודם.');
+    return;
+  }
+  const boys = going.filter(s => s.gender === 'ז');
+  const girls = going.filter(s => s.gender === 'נ');
+  const unkn  = going.filter(s => s.gender !== 'ז' && s.gender !== 'נ');
+
+  const newRooms = [];
+  function assignGroup(students, gender) {
+    const byClass = {};
+    students.forEach(s => {
+      const k = s.class || 'ללא כיתה';
+      if (!byClass[k]) byClass[k] = [];
+      byClass[k].push(s);
+    });
+    Object.keys(byClass).sort((a,b) => a.localeCompare(b,'he')).forEach(cls => {
+      const arr = byClass[cls];
+      for (let i = 0; i < arr.length; i += roomsPreferredSize) {
+        newRooms.push({
+          number: '',
+          gender,
+          students: arr.slice(i, i + roomsPreferredSize).map(s => ({ id: s.id, last: s.last, first: s.first, class: s.class, gender: s.gender }))
+        });
+      }
+    });
+  }
+  assignGroup(boys,  'ז');
+  assignGroup(girls, 'נ');
+  assignGroup(unkn,  '?');
+  roomsData = newRooms;
+  renderRooms();
+  scheduleRoomsSave();
+}
+
+function addRooms(gender) {
+  roomsData.push({ number: '', gender, students: [] });
+  renderRooms();
+  scheduleRoomsSave();
+}
+
+function deleteRoom(idx) {
+  if (!confirm('למחוק חדר זה? התלמידים יועברו לרשימת תלמידים ללא חדר.')) return;
+  roomsData.splice(idx, 1);
+  renderRooms();
+  scheduleRoomsSave();
+}
+
+function updateRoomNumber(idx, val) {
+  roomsData[idx].number = val;
+  scheduleRoomsSave();
+}
+
+function renderRooms() {
+  const boysWrap  = document.getElementById('rooms-boys-wrap');
+  const girlsWrap = document.getElementById('rooms-girls-wrap');
+  if (!boysWrap) return;
+  boysWrap.innerHTML  = '';
+  girlsWrap.innerHTML = '';
+
+  const inRooms = new Set();
+
+  roomsData.forEach((room, idx) => {
+    room.students.forEach(s => inRooms.add(s.id));
+    const isGirl = room.gender === 'נ';
+    const wrap = isGirl ? girlsWrap : boysWrap;
+    const classes = [...new Set(room.students.map(s => s.class).filter(Boolean))].sort((a,b) => a.localeCompare(b,'he'));
+    const classLabel = classes.join(' + ');
+    const chipColor  = isGirl ? '#fce4ec' : '#e3f2fd';
+    const chipBorder = isGirl ? '#f48fb1' : '#90caf9';
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:white;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:12px;transition:border-color 0.15s';
+    card.dataset.roomIdx = idx;
+
+    card.addEventListener('dragover', e => { e.preventDefault(); card.style.borderColor = '#2d6a4f'; });
+    card.addEventListener('dragleave', () => { card.style.borderColor = '#e0e0e0'; });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.style.borderColor = '#e0e0e0';
+      if (roomsDragSrc === null) return;
+      const { studentId, fromRoomIdx } = roomsDragSrc;
+      if (fromRoomIdx === idx) return;
+      const srcRoom = roomsData[fromRoomIdx];
+      const sIdx = srcRoom.students.findIndex(s => s.id === studentId);
+      if (sIdx === -1) return;
+      const [student] = srcRoom.students.splice(sIdx, 1);
+      roomsData[idx].students.push(student);
+      roomsDragSrc = null;
+      renderRooms();
+      scheduleRoomsSave();
+    });
+
+    const chips = room.students.map(s =>
+      `<div draggable="true" data-sid="${esc(s.id)}" data-ridx="${idx}"
+        style="background:${chipColor};border:1px solid ${chipBorder};border-radius:16px;padding:3px 10px;font-size:12px;cursor:grab;user-select:none;display:flex;align-items:center;gap:5px"
+        ondragstart="roomsDragSrc={studentId:'${esc(s.id)}',fromRoomIdx:${idx}}">
+        <span>${esc(s.first)} ${esc(s.last)}</span>
+        <span style="font-size:10px;color:#999">${esc(s.class || '')}</span>
+      </div>`
+    ).join('');
+
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600;color:#555;white-space:nowrap">מס׳ חדר:</label>
+        <input type="text" value="${esc(room.number)}" placeholder="ממתין לאכסנייה"
+          style="border:1px solid #ccc;border-radius:6px;padding:3px 8px;font-size:13px;width:110px;direction:ltr"
+          oninput="updateRoomNumber(${idx}, this.value)">
+        ${classLabel ? `<span style="background:#e8f5e9;color:#2d6a4f;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600">${esc(classLabel)}</span>` : ''}
+        <span style="margin-right:auto;font-size:11px;color:#888">${room.students.length} תלמידים</span>
+        <button onclick="deleteRoom(${idx})"
+          style="background:none;border:none;color:#e57373;cursor:pointer;font-size:18px;padding:0 2px;line-height:1" title="מחק חדר">✕</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;min-height:38px;border:1.5px dashed #ddd;border-radius:6px;padding:6px">
+        ${chips || '<span style="font-size:12px;color:#bbb;align-self:center">גרור תלמידים לכאן</span>'}
+      </div>`;
+
+    wrap.appendChild(card);
+  });
+
+  if (boysWrap.children.length  === 0) boysWrap.innerHTML  = '<div style="color:#aaa;font-size:13px;text-align:center;padding:24px">אין חדרי בנים — לחץ ⚡ או + חדר בנים</div>';
+  if (girlsWrap.children.length === 0) girlsWrap.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:24px">אין חדרי בנות — לחץ ⚡ או + חדר בנות</div>';
+
+  const going      = gStudents.filter(s => s.going !== false);
+  const unassigned = going.filter(s => !inRooms.has(s.id));
+  const uWrap = document.getElementById('rooms-unassigned-wrap');
+  const uList = document.getElementById('rooms-unassigned-list');
+  if (uWrap && uList) {
+    if (unassigned.length > 0) {
+      uList.textContent = unassigned.map(s => `${s.first} ${s.last} (${s.class})`).join(', ');
+      uWrap.style.display = '';
+    } else {
+      uWrap.style.display = 'none';
+    }
+  }
+}
+
+function scheduleRoomsSave() {
+  clearTimeout(roomsSaveTimer);
+  roomsSaveTimer = setTimeout(saveRooms, 1200);
+}
+
+async function saveRooms() {
+  if (!currentTrip || isLocal) { setStatus('rooms-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'rooms').set({ rooms: roomsData, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('rooms-status', 'נשמר ✓');
+  } catch(e) { setStatus('rooms-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportRoomsPDF(printMode = false) {
+  const t     = currentTrip || { name: '', school: '' };
+  const boys  = roomsData.filter(r => r.gender !== 'נ');
+  const girls = roomsData.filter(r => r.gender === 'נ');
+
+  function buildSection(rooms, title, color) {
+    if (rooms.length === 0) return '';
+    const rows = rooms.map((room, i) => {
+      const names   = room.students.map(s => `${s.first} ${s.last}`).join('<br>');
+      const classes = [...new Set(room.students.map(s => s.class).filter(Boolean))].sort((a,b) => a.localeCompare(b,'he')).join(', ');
+      return `<tr style="${i % 2 === 0 ? '' : 'background:#f7faf8'}">
+        <td style="padding:8px 10px;border:1px solid #ddd;font-size:13px;text-align:center;font-weight:700">${esc(room.number || '—')}</td>
+        <td style="padding:8px 10px;border:1px solid #ddd;font-size:12px;text-align:center">${esc(classes)}</td>
+        <td style="padding:8px 10px;border:1px solid #ddd;font-size:12px;line-height:1.8">${names}</td>
+        <td style="padding:8px 10px;border:1px solid #ddd;font-size:12px;text-align:center">${room.students.length}</td>
+      </tr>`;
+    }).join('');
+    return `<div style="margin-bottom:28px">
+      <div style="background:${color};color:white;padding:7px 12px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">${title} (${rooms.length} חדרים)</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f0f0f0">
+          <th style="padding:6px 10px;border:1px solid #ddd;font-size:11px;text-align:center;width:80px">מס׳ חדר</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;font-size:11px;text-align:center;width:80px">כיתה</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;font-size:11px">תלמידים</th>
+          <th style="padding:6px 10px;border:1px solid #ddd;font-size:11px;text-align:center;width:50px">סה"כ</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  const html = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:24px 32px;background:white;width:760px">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:18px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער</div>
+      <div style="font-size:16px;font-weight:bold;margin-top:3px">חלוקת חדרים — אכסנייה</div>
+      <div style="font-size:11px;color:#555;margin-top:3px">${esc(t.name || '')}${t.school ? ' | ' + esc(t.school) : ''}</div>
+    </div>
+    ${buildSection(boys,  'בנים',  '#1565c0')}
+    ${buildSection(girls, 'בנות',  '#c2185b')}
+  </div>`;
+
+  if (printMode) { doPrint(html); return; }
+
+  const pdfEl = document.getElementById('pdf-rooms');
+  pdfEl.innerHTML = html;
+  pdfEl.style.display = 'block';
+  setStatus('rooms-status', 'מייצא...');
+  try {
+    const canvas = await html2canvas(pdfEl, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+    pdfEl.style.display = 'none';
+    pdfEl.innerHTML = '';
+    const { jsPDF } = window.jspdf;
+    const pdf     = new jsPDF('p', 'mm', 'a4');
+    const margin  = 12, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2;
+    const imgH     = canvas.height * contentW / canvas.width;
+    const pageImgH = pageH - margin * 2;
+    const totalPages = Math.ceil(imgH / pageImgH);
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    for (let p = 0; p < totalPages; p++) {
+      if (p > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', margin, margin - p * pageImgH, contentW, imgH);
+    }
+    pdf.save(`חלוקת חדרים – ${t.name || 'טיול'}.pdf`);
+    setStatus('rooms-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; pdfEl.innerHTML = ''; setStatus('rooms-status', 'שגיאה'); console.error(e); }
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
