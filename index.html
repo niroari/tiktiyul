@@ -911,7 +911,16 @@ header h1{font-size:20px;font-weight:700}
           <button class="btn btn-secondary" onclick="autoAssignRooms()">⚡ חלק אוטומטית</button>
           <button class="btn btn-secondary" onclick="addRooms('ז')">+ חדר בנים</button>
           <button class="btn btn-secondary" onclick="addRooms('נ')">+ חדר בנות</button>
+          <button class="btn btn-danger" onclick="clearAllRooms()" style="font-size:13px">נקה הכל</button>
           <span id="rooms-status" style="font-size:13px;color:#888"></span>
+        </div>
+        <!-- Class filter -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;white-space:nowrap">סינון לפי כיתה:</label>
+          <select id="rooms-class-filter" onchange="roomsClassFilter=this.value;renderRooms()"
+            style="border:1px solid #ccc;border-radius:6px;padding:4px 10px;font-size:13px;min-width:120px">
+            <option value="all">כל הכיתות</option>
+          </select>
         </div>
 
         <!-- Unassigned warning -->
@@ -1118,6 +1127,7 @@ let roomsData          = []; // [{ number:'', gender:'ז'|'נ', students:[{id,la
 let roomsPreferredSize = 5;
 let roomsSaveTimer     = null;
 let roomsDragSrc       = null; // { studentId, fromRoomIdx }
+let roomsClassFilter   = 'all';
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 if (signDocId) {
@@ -4326,12 +4336,31 @@ function renderRooms() {
   boysWrap.innerHTML  = '';
   girlsWrap.innerHTML = '';
 
+  // Rebuild class filter dropdown
+  const filterEl = document.getElementById('rooms-class-filter');
+  if (filterEl) {
+    const allClasses = [...new Set(roomsData.flatMap(r => r.students.map(s => s.class).filter(Boolean)))].sort((a,b) => a.localeCompare(b,'he'));
+    filterEl.innerHTML = '<option value="all">כל הכיתות</option>' +
+      allClasses.map(c => `<option value="${esc(c)}" ${roomsClassFilter === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    if (roomsClassFilter !== 'all' && !allClasses.includes(roomsClassFilter)) roomsClassFilter = 'all';
+  }
+
   const inRooms = new Set();
+  roomsData.forEach(room => room.students.forEach(s => inRooms.add(s.id)));
+
+  let boysVisible = 0, girlsVisible = 0;
 
   roomsData.forEach((room, idx) => {
-    room.students.forEach(s => inRooms.add(s.id));
+    // Class filter: show room only if it contains a student from the selected class
+    if (roomsClassFilter !== 'all') {
+      const hasClass = room.students.some(s => s.class === roomsClassFilter);
+      if (!hasClass) return;
+    }
+
     const isGirl = room.gender === 'נ';
     const wrap = isGirl ? girlsWrap : boysWrap;
+    if (isGirl) girlsVisible++; else boysVisible++;
+
     const classes = [...new Set(room.students.map(s => s.class).filter(Boolean))].sort((a,b) => a.localeCompare(b,'he'));
     const classLabel = classes.join(' + ');
     const chipColor  = isGirl ? '#fce4ec' : '#e3f2fd';
@@ -4369,7 +4398,13 @@ function renderRooms() {
     ).join('');
 
     card.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:1px">
+          <button onclick="moveRoom(${idx},-1)" title="הזז למעלה"
+            style="background:none;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:11px;padding:0 5px;line-height:1.6;color:#555">▲</button>
+          <button onclick="moveRoom(${idx},1)" title="הזז למטה"
+            style="background:none;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:11px;padding:0 5px;line-height:1.6;color:#555">▼</button>
+        </div>
         <label style="font-size:12px;font-weight:600;color:#555;white-space:nowrap">מס׳ חדר:</label>
         <input type="text" value="${esc(room.number)}" placeholder="ממתין לאכסנייה"
           style="border:1px solid #ccc;border-radius:6px;padding:3px 8px;font-size:13px;width:110px;direction:ltr"
@@ -4386,8 +4421,8 @@ function renderRooms() {
     wrap.appendChild(card);
   });
 
-  if (boysWrap.children.length  === 0) boysWrap.innerHTML  = '<div style="color:#aaa;font-size:13px;text-align:center;padding:24px">אין חדרי בנים — לחץ ⚡ או + חדר בנים</div>';
-  if (girlsWrap.children.length === 0) girlsWrap.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:24px">אין חדרי בנות — לחץ ⚡ או + חדר בנות</div>';
+  if (boysVisible  === 0) boysWrap.innerHTML  = '<div style="color:#aaa;font-size:13px;text-align:center;padding:24px">' + (roomsClassFilter !== 'all' ? 'אין חדרי בנים לכיתה זו' : 'אין חדרי בנים — לחץ ⚡ או + חדר בנים') + '</div>';
+  if (girlsVisible === 0) girlsWrap.innerHTML = '<div style="color:#aaa;font-size:13px;text-align:center;padding:24px">' + (roomsClassFilter !== 'all' ? 'אין חדרי בנות לכיתה זו' : 'אין חדרי בנות — לחץ ⚡ או + חדר בנות') + '</div>';
 
   const going      = gStudents.filter(s => s.going !== false);
   const unassigned = going.filter(s => !inRooms.has(s.id));
@@ -4401,6 +4436,21 @@ function renderRooms() {
       uWrap.style.display = 'none';
     }
   }
+}
+
+function moveRoom(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= roomsData.length) return;
+  [roomsData[idx], roomsData[newIdx]] = [roomsData[newIdx], roomsData[idx]];
+  renderRooms();
+  scheduleRoomsSave();
+}
+
+function clearAllRooms() {
+  if (!confirm('למחוק את כל החדרים? פעולה זו לא ניתנת לביטול.')) return;
+  roomsData = [];
+  renderRooms();
+  scheduleRoomsSave();
 }
 
 function scheduleRoomsSave() {
