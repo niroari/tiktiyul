@@ -4352,8 +4352,8 @@ function renderRooms() {
   let boysVisible = 0, girlsVisible = 0;
 
   roomsData.forEach((room, idx) => {
-    // Class filter: show room only if it contains a student from the selected class
-    if (roomsClassFilter !== 'all') {
+    // Class filter: show room if it matches the class OR if it's empty (can receive students)
+    if (roomsClassFilter !== 'all' && room.students.length > 0) {
       const hasClass = room.students.some(s => s.class === roomsClassFilter);
       if (!hasClass) return;
     }
@@ -4441,14 +4441,17 @@ function renderRooms() {
   const uList = document.getElementById('rooms-unassigned-list');
   if (uWrap && uList) {
     if (unassigned.length > 0) {
-      uList.innerHTML = unassigned.map(s =>
+      const visibleUnassigned = roomsClassFilter === 'all'
+        ? unassigned
+        : unassigned.filter(s => s.class === roomsClassFilter);
+      uList.innerHTML = visibleUnassigned.map(s =>
         `<div draggable="true"
           style="background:#fff8e1;border:1px solid #ffc107;border-radius:16px;padding:3px 10px;font-size:12px;cursor:grab;user-select:none;display:inline-flex;align-items:center;gap:5px"
           ondragstart="roomsDragSrc={studentId:'${esc(s.id)}',fromRoomIdx:-1}">
           <span>${esc(s.first)} ${esc(s.last)}</span>
           <span style="font-size:10px;color:#888">${esc(s.class || '')}</span>
         </div>`
-      ).join('');
+      ).join('') || '<span style="font-size:12px;color:#888">אין תלמידים ללא חדר בכיתה זו</span>';
       uWrap.style.display = '';
     } else {
       uWrap.style.display = 'none';
