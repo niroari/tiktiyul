@@ -932,11 +932,17 @@ header h1{font-size:20px;font-weight:700}
         <!-- Two-column: boys | girls -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
           <div>
-            <div style="font-size:14px;font-weight:700;color:#1565c0;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1565c0">בנים</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1565c0">
+              <span style="font-size:14px;font-weight:700;color:#1565c0">בנים</span>
+              <button class="btn btn-secondary" onclick="addRooms('ז')" style="font-size:12px;padding:3px 10px">+ הוסף חדר</button>
+            </div>
             <div id="rooms-boys-wrap"></div>
           </div>
           <div>
-            <div style="font-size:14px;font-weight:700;color:#c2185b;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #c2185b">בנות</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #c2185b">
+              <span style="font-size:14px;font-weight:700;color:#c2185b">בנות</span>
+              <button class="btn btn-secondary" onclick="addRooms('נ')" style="font-size:12px;padding:3px 10px">+ הוסף חדר</button>
+            </div>
             <div id="rooms-girls-wrap"></div>
           </div>
         </div>
@@ -4444,14 +4450,16 @@ function renderRooms() {
       const visibleUnassigned = roomsClassFilter === 'all'
         ? unassigned
         : unassigned.filter(s => s.class === roomsClassFilter);
-      uList.innerHTML = visibleUnassigned.map(s =>
-        `<div draggable="true"
-          style="background:#fff8e1;border:1px solid #ffc107;border-radius:16px;padding:3px 10px;font-size:12px;cursor:grab;user-select:none;display:inline-flex;align-items:center;gap:5px"
+      uList.innerHTML = visibleUnassigned.map(s => {
+        const bg  = s.gender === 'נ' ? '#fce4ec' : s.gender === 'ז' ? '#e3f2fd' : '#fff8e1';
+        const bdr = s.gender === 'נ' ? '#f48fb1' : s.gender === 'ז' ? '#90caf9' : '#ffc107';
+        return `<div draggable="true"
+          style="background:${bg};border:1px solid ${bdr};border-radius:16px;padding:3px 10px;font-size:12px;cursor:grab;user-select:none;display:inline-flex;align-items:center;gap:5px"
           ondragstart="roomsDragSrc={studentId:'${esc(s.id)}',fromRoomIdx:-1}">
           <span>${esc(s.first)} ${esc(s.last)}</span>
           <span style="font-size:10px;color:#888">${esc(s.class || '')}</span>
-        </div>`
-      ).join('') || '<span style="font-size:12px;color:#888">אין תלמידים ללא חדר בכיתה זו</span>';
+        </div>`;
+      }).join('') || '<span style="font-size:12px;color:#888">אין תלמידים ללא חדר בכיתה זו</span>';
       uWrap.style.display = '';
     } else {
       uWrap.style.display = 'none';
