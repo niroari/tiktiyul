@@ -64,7 +64,7 @@ header h1{font-size:20px;font-weight:700}
 .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
 .page-title{font-size:24px;font-weight:700;color:#1b4332}
 .trips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
-.trip-card{background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;transition:all .2s;border:2px solid transparent}
+.trip-card{background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;transition:all .2s;border:2px solid transparent;position:relative}
 .trip-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12);border-color:#2d6a4f}
 .trip-card-icon{font-size:32px;margin-bottom:12px}
 .trip-card-name{font-size:17px;font-weight:700;color:#1b4332;margin-bottom:6px}
@@ -1279,6 +1279,10 @@ function renderTripList() {
   }
   grid.innerHTML = list.map(t => `
     <div class="trip-card" onclick="openTrip('${t.id}')">
+      <button onclick="event.stopPropagation();deleteTrip('${t.id}','${esc(t.name)}',${!!t._shared})"
+        title="${t._shared ? 'הסר מהרשימה' : 'מחק טיול'}"
+        style="position:absolute;top:10px;left:10px;background:none;border:none;cursor:pointer;color:#ccc;font-size:18px;line-height:1;padding:2px 6px;border-radius:6px;transition:color .15s"
+        onmouseover="this.style.color='#e57373'" onmouseout="this.style.color='#ccc'">🗑</button>
       <div class="trip-card-icon">🏕️</div>
       <div class="trip-card-name">${esc(t.name)}${t._shared ? ' <span style="font-size:11px;background:#e3f2fd;color:#1565c0;border-radius:10px;padding:1px 7px;font-weight:600;vertical-align:middle">שותף</span>' : ''}</div>
       <div class="trip-card-details">
@@ -1363,6 +1367,25 @@ async function saveTrip() {
     renderTripList();
   } catch(e) {
     showModalError('tripModalError', 'שגיאה בשמירה: ' + e.message);
+  }
+}
+
+async function deleteTrip(tripId, tripName, isShared) {
+  const msg = isShared
+    ? `להסיר את הטיול "${tripName}" מהרשימה שלך?\n\nהטיול עצמו לא יימחק — רק הגישה שלך אליו תוסר.`
+    : `למחוק את הטיול "${tripName}"?\n\nכל המידע של הטיול יימחק לצמיתות. פעולה זו לא ניתנת לביטול.`;
+  if (!confirm(msg)) return;
+  try {
+    if (isShared) {
+      if (!isLocal) await sharedTripsRef().doc(tripId).delete();
+    } else {
+      if (!isLocal) await tripsRef().doc(tripId).delete();
+    }
+    delete trips[tripId];
+    renderTripList();
+    showToast(isShared ? 'הטיול הוסר מהרשימה' : 'הטיול נמחק ✓');
+  } catch(e) {
+    alert('שגיאה במחיקה: ' + e.message);
   }
 }
 
