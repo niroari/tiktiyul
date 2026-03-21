@@ -982,19 +982,13 @@ header h1{font-size:20px;font-weight:700}
         <!-- Logo -->
         <div style="border:1px solid #e0e0e0;border-radius:10px;padding:16px 20px;margin-bottom:20px;background:#fafffe">
           <div style="font-weight:600;font-size:14px;margin-bottom:10px">לוגו בית הספר (יוצג בפינה של כל שלט)</div>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button id="signs-logo-tab-url" class="btn btn-secondary" style="font-size:13px" onclick="setSignsLogoMode('url')">🔗 קישור</button>
-            <button id="signs-logo-tab-file" class="btn btn-secondary" style="font-size:13px" onclick="setSignsLogoMode('file')">📎 העלאת קובץ</button>
-            <button class="btn btn-secondary" style="font-size:13px;color:#c62828" onclick="clearSignsLogo()">✕ הסר לוגו</button>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+            <input type="text" id="signs-logo-url" class="form-control" style="font-size:13px;direction:ltr" placeholder="https://...">
+            <button class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="applySignsLogoUrl()">אישור</button>
           </div>
-          <div id="signs-logo-url-area">
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="text" id="signs-logo-url" class="form-control" style="font-size:13px;direction:ltr" placeholder="https://...">
-              <button class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="applySignsLogoUrl()">אישור</button>
-            </div>
-          </div>
-          <div id="signs-logo-file-area" style="display:none">
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:4px">
             <input type="file" id="signs-logo-file" accept="image/*" style="font-size:13px" onchange="importSignsLogoFile(this)">
+            <button class="btn btn-secondary" style="font-size:13px;color:#c62828;white-space:nowrap" onclick="clearSignsLogo()">✕ הסר לוגו</button>
           </div>
           <div id="signs-logo-preview" style="margin-top:10px"></div>
         </div>
@@ -3565,10 +3559,6 @@ async function saveSigns() {
   } catch(e) { setStatus('signs-status', 'שגיאה'); console.error(e); }
 }
 
-function setSignsLogoMode(mode) {
-  document.getElementById('signs-logo-url-area').style.display  = mode === 'url'  ? '' : 'none';
-  document.getElementById('signs-logo-file-area').style.display = mode === 'file' ? '' : 'none';
-}
 
 function applySignsLogoUrl() {
   signsData.logo = document.getElementById('signs-logo-url').value.trim();
