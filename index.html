@@ -2780,6 +2780,9 @@ function renderDashboard() {
       ${statCard('🍽️', foodCount||'0', 'העדפות מזון', foodCount > 0 ? '#e67e22' : '#1b4332')}
     </div>
 
+    <!-- Class breakdown -->
+    ${classLines ? `<div class="section-title">פילוח לפי כיתה</div><div style="margin-bottom:16px">${classLines}</div>` : ''}
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
       <!-- Trip info -->
       <div>
@@ -2811,9 +2814,6 @@ function renderDashboard() {
         </div>
       </div>
     </div>
-
-    <!-- Class breakdown -->
-    ${classLines ? `<div class="section-title">פילוח לפי כיתה</div><div style="margin-bottom:8px">${classLines}</div>` : ''}
 
     <!-- Medical list -->
     ${foodCount > 0 ? (() => {
