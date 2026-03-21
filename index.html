@@ -318,6 +318,7 @@ header h1{font-size:20px;font-weight:700}
         <button class="appendix-tab" onclick="showAppendix('h')" id="tab-h">ח׳ – אישור הורים</button>
         <button class="appendix-tab" onclick="showAppendix('i')" id="tab-i">ט׳ – ציוד חובה</button>
         <button class="appendix-tab" onclick="showAppendix('j')" id="tab-j">י׳ – מגבלות רפואיות</button>
+        <button class="appendix-tab" onclick="showAppendix('food')" id="tab-food">🍽️ העדפות מזון</button>
         <button class="appendix-tab" onclick="showAppendix('masa')" id="tab-masa">הודעת מסע</button>
         <button class="appendix-tab" onclick="showAppendix('rooms')" id="tab-rooms">חלוקת חדרים</button>
         <button class="appendix-tab" onclick="showAppendix('print')" id="tab-print">🖨️ נספחים נוספים להדפסה</button>
@@ -766,6 +767,31 @@ header h1{font-size:20px;font-weight:700}
           <button class="btn btn-secondary" onclick="exportJPDF(true)">🖨️ הדפס</button>
           <button class="btn btn-secondary" onclick="exportJPDF(false)">⬇ ייצא PDF</button>
           <span id="j-status" style="font-size:13px;color:#888"></span>
+        </div>
+      </div>
+
+      <!-- ══ העדפות מזון ══ -->
+      <div class="appendix-content" id="content-food">
+        <div class="appendix-title">העדפות מזון של תלמידים</div>
+        <div class="appendix-subtitle">בחר/י תלמידים מהרשימה והוסף/י העדפות מזון</div>
+
+        <div id="food-add-row" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <select id="food-student-select" class="form-control" style="max-width:340px">
+            <option value="">— בחר/י תלמיד/ה —</option>
+          </select>
+          <button class="btn btn-secondary" onclick="addFoodRow()">+ הוסף</button>
+        </div>
+
+        <div id="food-no-students" style="display:none;color:#888;font-size:13px;margin-bottom:16px">
+          יש לטעון תחילה את רשימת התלמידים בנספח ז׳
+        </div>
+
+        <div id="food-table-wrap" style="overflow-x:auto;margin-bottom:20px"></div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" onclick="exportFoodPrefsPDF(true)">🖨️ הדפס</button>
+          <button class="btn btn-secondary" onclick="exportFoodPrefsPDF(false)">⬇ ייצא PDF</button>
+          <span id="food-status" style="font-size:13px;color:#888"></span>
         </div>
       </div>
 
@@ -1476,6 +1502,7 @@ header h1{font-size:20px;font-weight:700}
 </div>
 <div id="pdf-appendix-i" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-j" style="display:none;position:fixed;left:-9999px;top:0;width:1122px"></div>
+<div id="pdf-appendix-food" style="display:none;position:fixed;left:-9999px;top:0;width:1122px"></div>
 <div id="pdf-rooms" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-masa-p1" style="display:none;position:fixed;left:-9999px;top:0;width:842px"></div>
 <div id="pdf-masa-p2" style="display:none;position:fixed;left:-9999px;top:0;width:842px"></div>
@@ -1816,6 +1843,7 @@ function showAppendix(id) {
   if (id === 'h') loadAppendixH();
   if (id === 'i') loadAppendixI();
   if (id === 'j') loadAppendixJ();
+  if (id === 'food') loadFoodPrefs();
   if (id === 'masa') loadMasa();
   if (id === 'rooms') loadRooms();
   if (id === 'signs') loadSigns();
@@ -2649,6 +2677,7 @@ async function loadDashboard() {
       if (teamMembers.length === 0) toLoad.push(formRef(t.id,'team').get());         else toLoad.push(Promise.resolve(null));
       if (fBuses.length === 0)     toLoad.push(formRef(t.id,'appendix_f').get());   else toLoad.push(Promise.resolve(null));
       if (jRows.length === 0)      toLoad.push(formRef(t.id,'appendix_j').get());   else toLoad.push(Promise.resolve(null));
+      if (foodRows.length === 0)   toLoad.push(formRef(t.id,'food_prefs').get());   else toLoad.push(Promise.resolve(null));
 
       // Completion check — all form docs
       const FORM_IDS = ['appendix_a','appendix_b','appendix_c','appendix_d','appendix_e',
@@ -2659,10 +2688,11 @@ async function loadDashboard() {
       if (results[0]?.exists) gStudents   = (results[0].data().students||[]).map(s=>({...s,going:s.going!==false}));
       if (results[1]?.exists) teamMembers = results[1].data().members || [];
       if (results[2]?.exists) { fBuses = results[2].data().buses || []; }
-      if (results[3]?.exists) { jRows  = results[3].data().rows  || []; }
+      if (results[3]?.exists) { jRows     = results[3].data().rows || []; }
+      if (results[4]?.exists) { foodRows  = results[4].data().rows || []; }
 
       // Build completion map
-      const completionDocs = results.slice(4);
+      const completionDocs = results.slice(5);
       window._dashCompletion = {};
       FORM_IDS.forEach((fid, i) => { window._dashCompletion[fid] = completionDocs[i]?.exists || false; });
     } catch(e) { console.error(e); }
@@ -2681,6 +2711,7 @@ function renderDashboard() {
   const males   = students.filter(s => s.gender === 'ז').length;
   const females = students.filter(s => s.gender === 'נ').length;
   const medCount    = jRows.length;
+  const foodCount   = foodRows.length;
   const staffCount  = teamMembers.length;
   const busCount    = fBuses.length;
   const totalEscorts = fBuses.reduce((s,b)=>(s+(parseInt(b.escorts)||0)),0);
@@ -2737,6 +2768,7 @@ function renderDashboard() {
       ${statCard('🚌', busCount||'—', 'אוטובוסים')}
       ${totalPax ? statCard('👥', totalPax, 'יוצאים בסה"כ') : ''}
       ${statCard('⚕️', medCount||'0', 'מגבלות רפואיות', medCount > 0 ? '#c0392b' : '#1b4332')}
+      ${statCard('🍽️', foodCount||'0', 'העדפות מזון', foodCount > 0 ? '#e67e22' : '#1b4332')}
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
@@ -4126,6 +4158,185 @@ async function exportJPDF(printMode = false) {
     pdf.save(`נספח י – מגבלות רפואיות – ${t.name || 'טיול'}.pdf`);
     setStatus('j-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; pdfEl.innerHTML = ''; setStatus('j-status', 'שגיאה'); console.error(e); }
+}
+
+// ─── העדפות מזון ──────────────────────────────────────────────────────────────
+let foodRows = []; // [{ studentId, last, first, class, vegetarian, glutenFree, sensitivity, sensitivityDetail }]
+let foodSaveTimer = null;
+
+async function loadFoodPrefs() {
+  foodRows = [];
+  if (gStudents.length === 0 && currentTrip && !isLocal) {
+    try {
+      const doc = await formRef(currentTrip.id, 'appendix_g').get();
+      if (doc.exists) gStudents = (doc.data().students || []).map(s => ({ ...s, going: s.going !== false }));
+    } catch(e) { console.error(e); }
+  }
+  if (currentTrip && !isLocal) {
+    try {
+      const doc = await formRef(currentTrip.id, 'food_prefs').get();
+      if (doc.exists) foodRows = doc.data().rows || [];
+    } catch(e) { console.error(e); }
+  }
+  renderFoodStudentSelect();
+  renderFoodTable();
+  setStatus('food-status', '');
+}
+
+function renderFoodStudentSelect() {
+  const addRow     = document.getElementById('food-add-row');
+  const noStudents = document.getElementById('food-no-students');
+  if (gStudents.length === 0) {
+    addRow.style.display = 'none';
+    noStudents.style.display = '';
+    return;
+  }
+  addRow.style.display = '';
+  noStudents.style.display = 'none';
+  const sorted = [...gStudents].sort((a, b) => {
+    const c = a.class.localeCompare(b.class, 'he');
+    return c !== 0 ? c : a.last.localeCompare(b.last, 'he');
+  });
+  const sel = document.getElementById('food-student-select');
+  sel.innerHTML = '<option value="">— בחר/י תלמיד/ה —</option>' +
+    sorted.map(s => `<option value="${esc(s.id)}">${esc(s.last)} ${esc(s.first)} (${esc(s.class)})</option>`).join('');
+}
+
+function addFoodRow() {
+  const sel = document.getElementById('food-student-select');
+  const id = sel.value;
+  if (!id) return;
+  if (foodRows.find(r => r.studentId === id)) { setStatus('food-status', 'תלמיד/ה זה כבר ברשימה'); return; }
+  const s = gStudents.find(s => s.id === id);
+  if (!s) return;
+  foodRows.push({ studentId: s.id, last: s.last, first: s.first, class: s.class,
+    vegetarian: false, glutenFree: false, sensitivity: false, sensitivityDetail: '' });
+  sel.value = '';
+  setStatus('food-status', '');
+  renderFoodTable();
+  scheduleFoodPrefs();
+}
+
+function removeFoodRow(idx) {
+  foodRows.splice(idx, 1);
+  renderFoodTable();
+  scheduleFoodPrefs();
+}
+
+function renderFoodTable() {
+  const wrap = document.getElementById('food-table-wrap');
+  if (foodRows.length === 0) {
+    wrap.innerHTML = '<p style="color:#aaa;font-size:13px;margin-bottom:8px">טרם נוספו תלמידים. בחר/י מהרשימה למעלה.</p>';
+    return;
+  }
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:640px">
+    <thead><tr style="background:#1b4332;color:white">
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">שם התלמיד/ה</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">כיתה</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">צמחוני/טבעוני</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">ללא גלוטן</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">רגישות למזון</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">פירוט הרגישות</th>
+      <th style="padding:8px;border:1px solid #555;width:32px"></th>
+    </tr></thead>
+    <tbody>${foodRows.map((r, i) => `
+      <tr style="${i % 2 === 0 ? '' : 'background:#f0f7f4'}">
+        <td style="padding:6px 10px;border:1px solid #ddd;font-size:13px;white-space:nowrap">${esc(r.last)} ${esc(r.first)}</td>
+        <td style="padding:6px 10px;border:1px solid #ddd;font-size:13px;text-align:center">${esc(r.class)}</td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:center">
+          <input type="checkbox" ${r.vegetarian ? 'checked' : ''}
+            onchange="foodRows[${i}].vegetarian=this.checked;scheduleFoodPrefs()">
+        </td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:center">
+          <input type="checkbox" ${r.glutenFree ? 'checked' : ''}
+            onchange="foodRows[${i}].glutenFree=this.checked;scheduleFoodPrefs()">
+        </td>
+        <td style="padding:6px;border:1px solid #ddd;text-align:center">
+          <input type="checkbox" ${r.sensitivity ? 'checked' : ''}
+            onchange="foodRows[${i}].sensitivity=this.checked;scheduleFoodPrefs()">
+        </td>
+        <td style="padding:3px;border:1px solid #ddd">
+          <input class="form-control" style="font-size:13px;border:none;padding:5px 8px;background:transparent;min-width:180px"
+            value="${esc(r.sensitivityDetail)}" placeholder="פירוט..."
+            oninput="foodRows[${i}].sensitivityDetail=this.value;scheduleFoodPrefs()">
+        </td>
+        <td style="padding:4px;border:1px solid #ddd;text-align:center">
+          <button onclick="removeFoodRow(${i})"
+            style="background:none;border:none;color:#e57373;cursor:pointer;font-size:18px;line-height:1">✕</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function scheduleFoodPrefs() {
+  clearTimeout(foodSaveTimer);
+  foodSaveTimer = setTimeout(saveFoodPrefs, 1200);
+}
+
+async function saveFoodPrefs() {
+  if (!currentTrip || isLocal) { setStatus('food-status', 'נשמר ✓'); return; }
+  try {
+    await formRef(currentTrip.id, 'food_prefs').set({ rows: foodRows, savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    setStatus('food-status', 'נשמר ✓');
+  } catch(e) { setStatus('food-status', 'שגיאה'); console.error(e); }
+}
+
+async function exportFoodPrefsPDF(printMode = false) {
+  const t = currentTrip || { name: '', school: '' };
+  if (!currentTrip) return;
+  if (foodRows.length === 0) { setStatus('food-status', 'אין נתונים לייצוא'); return; }
+
+  const checkMark = v => v ? '✓' : '';
+  const rows = foodRows.map((r, i) => `
+    <tr style="${i % 2 === 0 ? '' : 'background:#f0f7f4'}">
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${i + 1}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;white-space:nowrap">${esc(r.last)} ${esc(r.first)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${esc(r.class)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${checkMark(r.vegetarian)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${checkMark(r.glutenFree)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px;text-align:center">${checkMark(r.sensitivity)}</td>
+      <td style="padding:5px 8px;border:1px solid #ddd;font-size:10px">${esc(r.sensitivityDetail)}</td>
+    </tr>`).join('');
+
+  const html = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:24px 32px;background:white">
+    <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:6px;margin-bottom:14px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:15px;font-weight:bold;margin-top:3px">העדפות מזון של תלמידים</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t.name || '')}${t.school ? ' | ' + esc(t.school) : ''}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#2d6a4f;color:white">
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;width:28px">מס׳</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;text-align:right">שם התלמיד/ה</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px">כיתה</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px">צמחוני/טבעוני</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px">ללא גלוטן</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px">רגישות למזון</th>
+        <th style="padding:6px 8px;border:1px solid #999;font-size:10px;text-align:right">פירוט הרגישות</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+
+  if (printMode) { doPrint(html); return; }
+
+  const pdfEl = document.getElementById('pdf-appendix-food');
+  pdfEl.innerHTML = html;
+  pdfEl.style.display = 'block';
+  setStatus('food-status', 'מייצא...');
+  try {
+    const canvas = await html2canvas(pdfEl, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+    pdfEl.style.display = 'none';
+    pdfEl.innerHTML = '';
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const margin = 10, pageW = 297;
+    const contentW = pageW - margin * 2;
+    const imgH = canvas.height * contentW / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, contentW, imgH);
+    pdf.save(`העדפות מזון – ${t.name || 'טיול'}.pdf`);
+    setStatus('food-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; pdfEl.innerHTML = ''; setStatus('food-status', 'שגיאה'); console.error(e); }
 }
 
 // ─── הודעת מסע של"ח ───────────────────────────────────────────────────────────
