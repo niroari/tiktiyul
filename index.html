@@ -82,8 +82,9 @@ header h1{font-size:20px;font-weight:700}
 .trip-header-meta{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:#555}
 
 /* ── Appendix Tabs ── */
-.appendix-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;background:white;padding:12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.appendix-tab{padding:7px 12px;border-radius:7px;background:transparent;border:1.5px solid #ddd;cursor:pointer;font-size:13px;font-family:inherit;transition:all .2s;color:#555;white-space:nowrap}
+.appendix-tabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px;background:white;padding:10px 12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.appendix-tab{padding:5px 10px;border-radius:7px;background:transparent;border:1.5px solid #ddd;cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s;color:#555;white-space:nowrap}
+#trip-dashboard-btn.active{background:#2d6a4f!important;color:white!important;border-color:#2d6a4f!important}
 .appendix-tab:hover{border-color:#2d6a4f;color:#2d6a4f;background:#f0f9f4}
 .appendix-tab.active{background:#2d6a4f;color:white;border-color:#2d6a4f}
 .appendix-tab.filled::after{content:' ✓';font-size:11px}
@@ -165,7 +166,7 @@ header h1{font-size:20px;font-weight:700}
   .trips-grid{grid-template-columns:1fr}
   .form-row{grid-template-columns:1fr}
   .appendix-tabs{padding:8px;gap:4px}
-  .appendix-tab{padding:6px 9px;font-size:12px}
+  .appendix-tab{padding:4px 8px;font-size:11px}
   .appendix-content{padding:18px}
   .modal{padding:20px}
   .trip-header-top{flex-direction:column}
@@ -298,6 +299,7 @@ header h1{font-size:20px;font-weight:700}
             </div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="trip-dashboard-btn" class="btn btn-secondary active" style="font-size:13px;white-space:nowrap" onclick="showAppendix('dashboard')">📊 דשבורד</button>
             <button id="trip-edit-btn" class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="openEditTrip()">✏️ עריכה</button>
             <button id="trip-share-btn" class="btn btn-secondary" style="font-size:13px;white-space:nowrap" onclick="shareTripLink()">🔗 שתף טיול</button>
           </div>
@@ -306,7 +308,6 @@ header h1{font-size:20px;font-weight:700}
 
       <!-- Appendix tab bar -->
       <div class="appendix-tabs" id="appendixTabs">
-        <button class="appendix-tab active" onclick="showAppendix('dashboard')" id="tab-dashboard">📊 דשבורד</button>
         <button class="appendix-tab" onclick="showAppendix('a')" id="tab-a">א׳ – ביקורת</button>
         <button class="appendix-tab" onclick="showAppendix('b')" id="tab-b">ב׳ – אישור מנהל</button>
         <button class="appendix-tab" onclick="showAppendix('c')" id="tab-c">ג׳ – כתב מינוי</button>
@@ -1831,6 +1832,7 @@ function showAppendix(id) {
   document.querySelectorAll('.appendix-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + id)?.classList.add('active');
   document.getElementById('content-' + id)?.classList.add('active');
+  document.getElementById('trip-dashboard-btn')?.classList.toggle('active', id === 'dashboard');
   if (id === 'a') loadAppendixA();
   if (id === 'b') loadAppendixB();
   if (id === 'c') loadAppendixC();
