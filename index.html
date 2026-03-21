@@ -751,9 +751,9 @@ header h1{font-size:20px;font-weight:700}
         <div class="appendix-subtitle">בחר/י תלמידים מהרשימה והוסף/י פרטים רפואיים</div>
 
         <div id="j-add-row" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-          <select id="j-student-select" class="form-control" style="max-width:340px">
-            <option value="">— בחר/י תלמיד/ה —</option>
-          </select>
+          <input id="j-student-input" class="form-control" list="j-students-list"
+            style="max-width:340px" placeholder="הקלד/י שם תלמיד/ה...">
+          <datalist id="j-students-list"></datalist>
           <button class="btn btn-secondary" onclick="addJRow()">+ הוסף</button>
         </div>
 
@@ -776,9 +776,9 @@ header h1{font-size:20px;font-weight:700}
         <div class="appendix-subtitle">בחר/י תלמידים מהרשימה והוסף/י העדפות מזון</div>
 
         <div id="food-add-row" style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-          <select id="food-student-select" class="form-control" style="max-width:340px">
-            <option value="">— בחר/י תלמיד/ה —</option>
-          </select>
+          <input id="food-student-input" class="form-control" list="food-students-list"
+            style="max-width:340px" placeholder="הקלד/י שם תלמיד/ה...">
+          <datalist id="food-students-list"></datalist>
           <button class="btn btn-secondary" onclick="addFoodRow()">+ הוסף</button>
         </div>
 
@@ -3998,10 +3998,12 @@ async function exportIPDF(printMode = false) {
 
 // ─── Appendix י — מגבלות רפואיות ─────────────────────────────────────────────
 let jRows = []; // [{ studentId, last, first, class, issue, notes }]
+let jCerts = {}; // { [studentId]: { fileName, dataUrl } }
 let jSaveTimer = null;
 
 async function loadAppendixJ() {
   jRows = [];
+  jCerts = {};
   // load students from memory or Firestore
   if (gStudents.length === 0 && currentTrip && !isLocal) {
     try {
@@ -4014,6 +4016,16 @@ async function loadAppendixJ() {
       const doc = await formRef(currentTrip.id, 'appendix_j').get();
       if (doc.exists) jRows = doc.data().rows || [];
     } catch(e) { console.error(e); }
+    if (jRows.length > 0) {
+      try {
+        const certDocs = await Promise.all(
+          jRows.map(r => formRef(currentTrip.id, 'med_cert_' + r.studentId).get().catch(() => null))
+        );
+        certDocs.forEach((doc, i) => {
+          if (doc?.exists) jCerts[jRows[i].studentId] = doc.data();
+        });
+      } catch(e) { console.error(e); }
+    }
   }
   renderJStudentSelect();
   renderJTable();
@@ -4021,7 +4033,7 @@ async function loadAppendixJ() {
 }
 
 function renderJStudentSelect() {
-  const addRow    = document.getElementById('j-add-row');
+  const addRow     = document.getElementById('j-add-row');
   const noStudents = document.getElementById('j-no-students');
   if (gStudents.length === 0) {
     addRow.style.display = 'none';
@@ -4034,20 +4046,19 @@ function renderJStudentSelect() {
     const c = a.class.localeCompare(b.class, 'he');
     return c !== 0 ? c : a.last.localeCompare(b.last, 'he');
   });
-  const sel = document.getElementById('j-student-select');
-  sel.innerHTML = '<option value="">— בחר/י תלמיד/ה —</option>' +
-    sorted.map(s => `<option value="${esc(s.id)}">${esc(s.last)} ${esc(s.first)} (${esc(s.class)})</option>`).join('');
+  const dl = document.getElementById('j-students-list');
+  dl.innerHTML = sorted.map(s => `<option value="${esc(s.last + ' ' + s.first + ' (' + s.class + ')')}"></option>`).join('');
 }
 
 function addJRow() {
-  const sel = document.getElementById('j-student-select');
-  const id = sel.value;
-  if (!id) return;
-  if (jRows.find(r => r.studentId === id)) { setStatus('j-status', 'תלמיד/ה זה כבר ברשימה'); return; }
-  const s = gStudents.find(s => s.id === id);
-  if (!s) return;
+  const input = document.getElementById('j-student-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const s = gStudents.find(s => `${s.last} ${s.first} (${s.class})` === val);
+  if (!s) { setStatus('j-status', 'לא נמצא תלמיד/ה — יש לבחור מהרשימה'); return; }
+  if (jRows.find(r => r.studentId === s.id)) { setStatus('j-status', 'תלמיד/ה זה כבר ברשימה'); return; }
   jRows.push({ studentId: s.id, last: s.last, first: s.first, class: s.class, issue: '', notes: '' });
-  sel.value = '';
+  input.value = '';
   setStatus('j-status', '');
   renderJTable();
   scheduleJ();
@@ -4065,15 +4076,19 @@ function renderJTable() {
     wrap.innerHTML = '<p style="color:#aaa;font-size:13px;margin-bottom:8px">טרם נוספו תלמידים. בחר/י מהרשימה למעלה.</p>';
     return;
   }
-  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:600px">
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;min-width:700px">
     <thead><tr style="background:#1b4332;color:white">
       <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">שם התלמיד/ה</th>
       <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">כיתה</th>
       <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">הבעיה הרפואית</th>
       <th style="padding:8px 10px;border:1px solid #555;font-size:12px;text-align:right">דגשים להשגחה</th>
+      <th style="padding:8px 10px;border:1px solid #555;font-size:12px;white-space:nowrap">אישור רפואי</th>
       <th style="padding:8px;border:1px solid #555;width:32px"></th>
     </tr></thead>
-    <tbody>${jRows.map((r, i) => `
+    <tbody>${jRows.map((r, i) => {
+      const cert = jCerts[r.studentId];
+      const certLabel = cert ? cert.fileName.length > 18 ? cert.fileName.substring(0, 18) + '…' : cert.fileName : '';
+      return `
       <tr style="${i % 2 === 0 ? '' : 'background:#f0f7f4'}">
         <td style="padding:6px 10px;border:1px solid #ddd;font-size:13px;white-space:nowrap">${esc(r.last)} ${esc(r.first)}</td>
         <td style="padding:6px 10px;border:1px solid #ddd;font-size:13px;text-align:center">${esc(r.class)}</td>
@@ -4087,12 +4102,56 @@ function renderJTable() {
             value="${esc(r.notes)}" placeholder="דגשים..."
             oninput="jRows[${i}].notes=this.value;scheduleJ()">
         </td>
+        <td style="padding:6px 8px;border:1px solid #ddd;white-space:nowrap;font-size:12px">
+          <input type="file" id="j-cert-${i}" accept=".pdf,.jpg,.jpeg,.png" style="display:none"
+            onchange="uploadJCert(${i}, this)">
+          ${cert
+            ? `<span style="color:#1b4332;margin-left:4px" title="${esc(cert.fileName)}">✓ ${esc(certLabel)}</span>
+               <a href="${cert.dataUrl}" target="_blank" style="color:#1b4332;margin-right:4px;text-decoration:none" title="פתח קובץ">👁</a>
+               <button onclick="removeJCert(${i})" style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;vertical-align:middle" title="הסר אישור">✕</button>`
+            : `<label for="j-cert-${i}" style="cursor:pointer;color:#1b4332;font-size:12px;padding:3px 8px;border:1px solid #1b4332;border-radius:4px">📎 העלה</label>`
+          }
+        </td>
         <td style="padding:4px;border:1px solid #ddd;text-align:center">
           <button onclick="removeJRow(${i})"
             style="background:none;border:none;color:#e57373;cursor:pointer;font-size:18px;line-height:1">✕</button>
         </td>
-      </tr>`).join('')}
+      </tr>`;
+    }).join('')}
     </tbody></table>`;
+}
+
+function uploadJCert(idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const r = jRows[idx];
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    jCerts[r.studentId] = { fileName: file.name, dataUrl: e.target.result };
+    renderJTable();
+    if (currentTrip && !isLocal) {
+      try {
+        await formRef(currentTrip.id, 'med_cert_' + r.studentId).set({
+          fileName: file.name, dataUrl: e.target.result,
+          savedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        setStatus('j-status', 'אישור נשמר ✓');
+      } catch(err) {
+        setStatus('j-status', 'הקובץ גדול מדי לשמירה בענן');
+        console.error(err);
+      }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removeJCert(idx) {
+  const r = jRows[idx];
+  delete jCerts[r.studentId];
+  renderJTable();
+  if (currentTrip && !isLocal) {
+    try { await formRef(currentTrip.id, 'med_cert_' + r.studentId).delete(); } catch(e) { console.error(e); }
+  }
 }
 
 function scheduleJ() {
@@ -4197,21 +4256,20 @@ function renderFoodStudentSelect() {
     const c = a.class.localeCompare(b.class, 'he');
     return c !== 0 ? c : a.last.localeCompare(b.last, 'he');
   });
-  const sel = document.getElementById('food-student-select');
-  sel.innerHTML = '<option value="">— בחר/י תלמיד/ה —</option>' +
-    sorted.map(s => `<option value="${esc(s.id)}">${esc(s.last)} ${esc(s.first)} (${esc(s.class)})</option>`).join('');
+  const dl = document.getElementById('food-students-list');
+  dl.innerHTML = sorted.map(s => `<option value="${esc(s.last + ' ' + s.first + ' (' + s.class + ')')}"></option>`).join('');
 }
 
 function addFoodRow() {
-  const sel = document.getElementById('food-student-select');
-  const id = sel.value;
-  if (!id) return;
-  if (foodRows.find(r => r.studentId === id)) { setStatus('food-status', 'תלמיד/ה זה כבר ברשימה'); return; }
-  const s = gStudents.find(s => s.id === id);
-  if (!s) return;
+  const input = document.getElementById('food-student-input');
+  const val = input.value.trim();
+  if (!val) return;
+  const s = gStudents.find(s => `${s.last} ${s.first} (${s.class})` === val);
+  if (!s) { setStatus('food-status', 'לא נמצא תלמיד/ה — יש לבחור מהרשימה'); return; }
+  if (foodRows.find(r => r.studentId === s.id)) { setStatus('food-status', 'תלמיד/ה זה כבר ברשימה'); return; }
   foodRows.push({ studentId: s.id, last: s.last, first: s.first, class: s.class,
     vegetarian: false, glutenFree: false, sensitivity: false, sensitivityDetail: '' });
-  sel.value = '';
+  input.value = '';
   setStatus('food-status', '');
   renderFoodTable();
   scheduleFoodPrefs();
