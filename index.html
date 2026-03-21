@@ -640,6 +640,7 @@ header h1{font-size:20px;font-weight:700}
           <button class="btn btn-secondary" style="font-size:13px" onclick="document.getElementById('g-file-input').click()">🔄 החלף קובץ</button>
           <button class="btn btn-secondary" style="font-size:13px" onclick="exportGPDF()">📄 ייצא PDF</button>
           <button class="btn btn-secondary" style="font-size:13px" onclick="exportGPDF(true)">🖨️ הדפס</button>
+          <button id="g-not-going-btn" class="btn btn-secondary" style="font-size:13px;display:none" onclick="showNotGoingModal()">🚫 לא יוצאים (<span id="g-not-going-count">0</span>)</button>
         </div>
 
         <!-- Table -->
@@ -1107,6 +1108,22 @@ header h1{font-size:20px;font-weight:700}
 <div id="pdf-appendix-e" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-f" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-g" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+<div id="pdf-appendix-g-not-going" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
+
+<!-- Not-going students modal -->
+<div id="g-not-going-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:white;border-radius:12px;max-width:700px;margin:40px auto;padding:24px;position:relative">
+    <button onclick="document.getElementById('g-not-going-modal').style.display='none'" style="position:absolute;top:12px;left:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#555;line-height:1">✕</button>
+    <div style="font-size:16px;font-weight:bold;margin-bottom:4px;text-align:center">תלמידים שאינם יוצאים לטיול</div>
+    <div id="g-not-going-modal-count" style="font-size:13px;color:#888;text-align:center;margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;justify-content:center">
+      <button class="btn btn-secondary" style="font-size:13px" onclick="exportNotGoingPDF()">📄 ייצא PDF</button>
+      <button class="btn btn-secondary" style="font-size:13px" onclick="exportNotGoingPDF(true)">🖨️ הדפס</button>
+    </div>
+    <div id="g-not-going-table-wrap" style="overflow-x:auto"></div>
+    <span id="g-not-going-status" style="font-size:13px;color:#888;display:block;margin-top:8px;text-align:center"></span>
+  </div>
+</div>
 <div id="pdf-appendix-i" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
 <div id="pdf-appendix-j" style="display:none;position:fixed;left:-9999px;top:0;width:1122px"></div>
 <div id="pdf-rooms" style="display:none;position:fixed;left:-9999px;top:0;width:794px"></div>
@@ -2880,6 +2897,12 @@ function renderGTable() {
     goingCount === gStudents.length
       ? `${gStudents.length} תלמידים`
       : `${goingCount} יוצאים מתוך ${gStudents.length}`;
+  const notGoingCount = gStudents.filter(s => s.going === false).length;
+  const ngBtn = document.getElementById('g-not-going-btn');
+  if (ngBtn) ngBtn.style.display = notGoingCount > 0 ? '' : 'none';
+  const ngSpan = document.getElementById('g-not-going-count');
+  if (ngSpan) ngSpan.textContent = notGoingCount;
+
   document.getElementById('g-table-body').innerHTML = rows.map((s,i) =>
     `<tr style="${i%2===0?'':'background:#f7faf8'}${s.going===false?';opacity:0.45':''}">
       <td style="font-size:13px;direction:ltr">${esc(s.id)}</td>
@@ -3016,6 +3039,122 @@ async function exportGPDF(printMode = false) {
     pdf.save(`נספח ז – רשימת תלמידים – ${t.name}.pdf`);
     setStatus('g-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+function showNotGoingModal() {
+  const notGoing = [...gStudents].filter(s => s.going === false)
+    .sort((a, b) => { const c = a.class.localeCompare(b.class,'he'); return c !== 0 ? c : a.last.localeCompare(b.last,'he'); });
+  document.getElementById('g-not-going-modal-count').textContent = `${notGoing.length} תלמידים`;
+  const rows = notGoing.map((s, i) =>
+    `<tr style="${i%2===0?'':'background:#fff5f5'}">
+      <td style="font-size:13px;direction:ltr">${esc(s.id)}</td>
+      <td style="font-size:13px">${esc(s.last)}</td>
+      <td style="font-size:13px">${esc(s.first)}</td>
+      <td style="font-size:13px;text-align:center">${esc(s.class)}</td>
+      <td style="text-align:center">${s.gender==='נ'?'<span style="background:#fce4ec;color:#c2185b;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600">נקבה</span>':s.gender==='ז'?'<span style="background:#e3f2fd;color:#1565c0;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600">זכר</span>':''}</td>
+      <td style="font-size:13px;direction:ltr">${esc(s.phone)}</td>
+    </tr>`
+  ).join('');
+  document.getElementById('g-not-going-table-wrap').innerHTML =
+    `<table class="sched-table">
+      <thead><tr>
+        <th style="width:110px">ת.ז</th><th>שם משפחה</th><th>שם פרטי</th>
+        <th style="width:70px">כיתה</th><th style="width:50px;text-align:center">מין</th><th style="width:130px">טלפון</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.getElementById('g-not-going-status').textContent = '';
+  document.getElementById('g-not-going-modal').style.display = 'block';
+}
+
+async function exportNotGoingPDF(printMode = false) {
+  const t = currentTrip;
+  const notGoing = [...gStudents].filter(s => s.going === false)
+    .sort((a, b) => { const c = a.class.localeCompare(b.class,'he'); return c !== 0 ? c : a.last.localeCompare(b.last,'he'); });
+  if (notGoing.length === 0) return;
+
+  const grouped = [];
+  let lastClass = null, rowInClass = 0;
+  for (const s of notGoing) {
+    if (s.class !== lastClass) { grouped.push({ type:'header', label:`כיתה ${s.class}` }); lastClass = s.class; rowInClass = 0; }
+    grouped.push({ type:'row', s, i: rowInClass++ });
+  }
+  const tableRows = grouped.map(g => {
+    if (g.type === 'header') return `<tr><td colspan="5" style="padding:5px 8px;background:#7b2d2d;color:white;font-size:11px;font-weight:bold;border:1px solid #7b2d2d">${g.label}</td></tr>`;
+    const { s, i } = g;
+    return `<tr style="${i%2===0?'':'background:#fff5f5'}">
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;direction:ltr;white-space:nowrap">${esc(s.id)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;white-space:nowrap">${esc(s.last)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;white-space:nowrap">${esc(s.first)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;text-align:center;white-space:nowrap">${esc(s.class)}</td>
+      <td style="padding:3px 6px;border:1px solid #ddd;font-size:10px;direction:ltr;white-space:nowrap">${esc(s.phone)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:14px 18px;font-size:10px;background:white;width:760px">
+    <div style="text-align:center;border-bottom:2px solid #7b2d2d;padding-bottom:6px;margin-bottom:10px">
+      <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+      <div style="font-size:14px;font-weight:bold;margin-top:3px">נספח ז׳ — תלמידים שאינם יוצאים לטיול</div>
+      <div style="font-size:9px;color:#555;margin-top:2px">${esc(t?.name||'')} | ${esc(t?.school||'')} | ${notGoing.length} תלמידים</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;table-layout:auto">
+      <thead><tr style="background:#7b2d2d;color:white">
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right;white-space:nowrap">ת.ז</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right">שם משפחה</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right">שם פרטי</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right;white-space:nowrap">כיתה</th>
+        <th style="padding:4px 6px;border:1px solid #999;font-size:10px;text-align:right;white-space:nowrap">טלפון</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>`;
+
+  if (printMode) { doPrint(html); return; }
+
+  const pdfEl = document.getElementById('pdf-appendix-g-not-going');
+  pdfEl.innerHTML = html;
+  pdfEl.style.display = 'block';
+  setStatus('g-not-going-status', 'מייצא...');
+  try {
+    const pdfTop = pdfEl.getBoundingClientRect().top;
+    const rowBottomsDom = Array.from(pdfEl.querySelectorAll('tr')).map(tr => tr.getBoundingClientRect().bottom - pdfTop);
+    const domWidth = pdfEl.offsetWidth;
+    const canvas = await html2canvas(pdfEl, { scale:2, useCORS:true, backgroundColor:'#fff' });
+    pdfEl.style.display = 'none';
+    const domToCanvas = canvas.width / domWidth;
+    const margin = 20, pageW = 210, pageH = 297;
+    const contentW = pageW - margin * 2, contentH = pageH - margin * 2;
+    const contentH_canvas = contentH * (canvas.width / contentW);
+    const eps = 3;
+    const slices = [];
+    let top = 0;
+    while (top < canvas.height) {
+      const maxBottom = top + contentH_canvas;
+      if (maxBottom >= canvas.height) { slices.push({ top, bottom: canvas.height }); break; }
+      let safeBottom = -1;
+      for (const rb of rowBottomsDom) {
+        const rbC = rb * domToCanvas;
+        if (rbC > top + 1 && rbC <= maxBottom + eps) safeBottom = Math.min(rbC, maxBottom);
+      }
+      if (safeBottom < 0) safeBottom = maxBottom;
+      slices.push({ top, bottom: safeBottom });
+      top = safeBottom;
+    }
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    for (let i = 0; i < slices.length; i++) {
+      if (i > 0) pdf.addPage();
+      const { top: sTop, bottom: sBottom } = slices[i];
+      const sliceH_canvas = sBottom - sTop;
+      const sliceH_mm = sliceH_canvas / (canvas.width / contentW);
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = Math.ceil(sliceH_canvas);
+      slice.getContext('2d').drawImage(canvas, 0, Math.floor(sTop), canvas.width, Math.ceil(sliceH_canvas), 0, 0, canvas.width, Math.ceil(sliceH_canvas));
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, contentW, sliceH_mm);
+    }
+    pdf.save(`נספח ז – לא יוצאים – ${t?.name||''}.pdf`);
+    setStatus('g-not-going-status', 'PDF יוצא בהצלחה ✓');
+  } catch(e) { pdfEl.style.display = 'none'; setStatus('g-not-going-status', 'שגיאה בייצוא'); console.error(e); }
 }
 
 // ─── Appendix ח — אישור הורים ─────────────────────────────────────────────────
