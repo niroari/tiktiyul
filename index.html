@@ -1035,7 +1035,7 @@ header h1{font-size:20px;font-weight:700}
             <span>נספח ט"ו — בדיקת אוטובוס לפני היציאה לטיול</span>
             <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-0', true)">🖨️ הדפס</button>
           </div>
-          <div id="pf-0" class="print-form-preview">
+          <div id="pf-0" class="print-form-preview" data-compact="true">
             <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
               <div style="font-size:11px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
               <div style="font-size:16px;font-weight:bold;margin:4px 0">נספח ט"ו</div>
@@ -3642,16 +3642,16 @@ function printAllBusSigns() {
 }
 
 // ─── Print-only appendices ────────────────────────────────────────────────────
+const COMPACT_CSS = '.cf td,.cf th{padding:4px 8px!important}.cf p{margin:2px 0!important}.cf .section-title{margin:6px 0 2px!important}';
+
 function printPrintForm(id, compact = false) {
   const el = document.getElementById(id);
   if (!el) return;
   const wrapStyle = compact
     ? 'padding:6mm 10mm;font-size:11px;line-height:1.4'
     : 'padding:15mm 20mm;font-size:13px;line-height:2.2';
-  const extraCss = compact
-    ? '<style>td,th{padding:4px 8px!important}p{margin:2px 0!important}.section-title{margin:6px 0 2px!important}</style>'
-    : '';
-  doPrint(`${extraCss}<div style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;${wrapStyle};color:#222">${el.innerHTML}</div>`);
+  const cls = compact ? 'cf' : '';
+  doPrint(`<style>${COMPACT_CSS}</style><div class="${cls}" style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;${wrapStyle};color:#222">${el.innerHTML}</div>`);
 }
 
 function printAllPrintForms() {
@@ -3659,10 +3659,15 @@ function printAllPrintForms() {
   const parts = ids.map((id, i) => {
     const el = document.getElementById(id);
     if (!el) return '';
+    const compact = el.dataset.compact === 'true';
+    const wrapStyle = compact
+      ? 'padding:6mm 10mm;font-size:11px;line-height:1.4'
+      : 'padding:15mm 20mm;font-size:13px;line-height:2.2';
+    const cls = compact ? 'cf' : '';
     return (i > 0 ? '<div style="page-break-before:always"></div>' : '') +
-      `<div style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;padding:15mm 20mm;font-size:13px;line-height:2.2;color:#222">${el.innerHTML}</div>`;
+      `<div class="${cls}" style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;${wrapStyle};color:#222">${el.innerHTML}</div>`;
   });
-  doPrint(parts.join(''));
+  doPrint(`<style>${COMPACT_CSS}</style>` + parts.join(''));
 }
 
 // ─── Appendix ח — אישור הורים ─────────────────────────────────────────────────
