@@ -64,6 +64,7 @@ tiyul_signatures/{uid}_{tripId}_{role}      — remote signing docs (public read
 | ט (i) | ציוד חובה | Static checklist + option to add custom items | ✅ done |
 | י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes | ✅ done |
 | הודעת מסע (masa) | הודעת מסע של"ח | 2-page form: general info + schedule table + role holders + signatures | ✅ done |
+| rooms | חלוקת חדרים | Room assignment for hostel trips: boys/girls separated, drag-and-drop students between rooms, class filter, manual reorder (↑↓), print/PDF export | ✅ done |
 
 ---
 
@@ -161,6 +162,8 @@ Page 2:
 - **Dashboard** — default landing tab when opening a trip. Loads gStudents, teamMembers, fBuses, jRows and all form docs in parallel for stats + completion status. "יוצאים בסה"כ" = students + staff (teamMembers.length).
 - **Trip sharing** — owner clicks "🔗 שתף טיול" → creates `tiyul_invites/{token}` → share link `?jointiyul={token}`. Joiner opens link, logs in, gets written to `users/{uid}/shared_trips/{tripId}`. App then loads their shared trips alongside own trips. `currentTripOwnerUid` tracks whose Firestore path to use; `formRef()` uses it. Collaborators see a "שותף" badge and cannot edit trip metadata.
 - **Firestore rules** — production rules deployed (replaced test-mode open rules). Collaborator access gated by existence of `users/{uid}/shared_trips/{tripId}` doc.
+- **Delete trip** — 🗑 button on each trip card in the main list. Owned trips: deletes `users/{uid}/trips/{tripId}` doc from Firestore (subcollections/forms become orphaned but are inaccessible). Shared trips: only deletes the `users/{uid}/shared_trips/{tripId}` pointer. Both show a confirmation dialog before acting.
+- **חלוקת חדרים** (rooms) — sits after הודעת מסע. Pulls from `gStudents` (auto-loads from Firestore if tab G not yet visited). Auto-assign splits by gender + class into preferred size chunks (4/5/6, no hard limit). Room cards: editable number field, ↑↓ reorder buttons, draggable student chips, ✕ to remove from room. Unassigned students shown as draggable chips (colored by gender: blue/pink/yellow) — drag to any room card to assign. Class filter dropdown reads from gStudents. Empty rooms always visible through filter so new rooms can receive students. Saves to `formRef(tripId, 'rooms')`.
 - **Gotcha (temporal dead zone):** module-level `let` variables used by boot-time functions must be declared in the `// ─── State ───` section BEFORE the boot code. Declaring them later causes silent async crashes.
 - **Print buttons:** every export function takes `printMode = false`. When `true`, calls `doPrint(html)` → `#print-area` + `window.print()`. All appendices follow this pattern.
 - **Appendix ז PDF page breaks:** skipped — browser handles page breaks natively via print button.
