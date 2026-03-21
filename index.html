@@ -3874,8 +3874,8 @@ function uploadSecurityFile(input) {
   const file = input.files[0];
   if (!file) return;
   const status = document.getElementById('security-status');
-  if (file.size > 700 * 1024) {
-    status.textContent = 'הקובץ גדול מדי (מעל 700KB). נסה/י לדחוס את ה-PDF לפני ההעלאה.';
+  if (file.size > 1500 * 1024) {
+    status.textContent = 'הקובץ גדול מדי (מעל 1.5MB). נסה/י לדחוס את ה-PDF לפני ההעלאה.';
     input.value = '';
     return;
   }
