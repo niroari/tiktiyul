@@ -3619,9 +3619,9 @@ function buildSignHtml(bus) {
     font-family:Arial,'Noto Sans Hebrew',sans-serif;direction:rtl;padding:10mm 16mm">
     ${logoHtml}
     <div style="font-size:76pt;font-weight:bold;color:#444;margin-bottom:18mm;text-align:center;letter-spacing:1px">
-      אוטובוס מספר ${esc(bus.num)}
+      ${esc(bus.num)}
     </div>
-    <div style="font-size:${bus.classes.length > 8 ? '216' : '288'}pt;font-weight:bold;color:#1b4332;line-height:1;text-align:center">
+    <div style="font-size:${bus.classes.length > 8 ? '173' : '230'}pt;font-weight:bold;color:#1b4332;line-height:1;text-align:center">
       ${esc(bus.classes)}
     </div>
   </div>`;
