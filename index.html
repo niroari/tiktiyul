@@ -2970,12 +2970,14 @@ async function saveTeam() {
   } catch(e) { setStatus('team-status', 'שגיאה'); console.error(e); }
 }
 
-function fillFCrewPhone(bi, ri, name) {
+function selectFCrewMember(bi, ri, name) {
   const member = teamMembers.find(m => m.name === name);
-  if (!member || !member.phone) return;
-  fBuses[bi].crew[ri].phone = member.phone;
+  fBuses[bi].crew[ri].name  = name;
+  fBuses[bi].crew[ri].phone = member?.phone || '';
   const phoneInput = document.getElementById(`f-phone-${bi}-${ri}`);
-  if (phoneInput) phoneInput.value = member.phone;
+  if (phoneInput) phoneInput.value = fBuses[bi].crew[ri].phone;
+  updateBusCounts(bi);
+  scheduleF();
 }
 
 const F_CREW_ROLES = ['מורה אחראי/ת', 'מורה נוסף', 'נהג', 'מאבטח/חובש', 'מדריך'];
@@ -3081,28 +3083,37 @@ function renderFBuses() {
           <th style="background:#2d6a4f;width:150px">טלפון</th>
         </tr></thead>
         <tbody>
-          ${F_CREW_ROLES.map((role, ri) => `<tr>
-            <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
-            <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
-              ${ri<=1?'list="team-names-list"':''}
-              oninput="fBuses[${bi}].crew[${ri}].name=this.value;${ri<=1?`fillFCrewPhone(${bi},${ri},this.value);`:''}updateBusCounts(${bi});scheduleF()"></td>
-            <td><input type="text" id="f-phone-${bi}-${ri}" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
-              oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
-          </tr>`).join('')}
-          ${(bus.extraTeachers||[]).map((et, ti) => `<tr>
-            <td style="background:#f9fffe;padding:3px 8px">
-              <select onchange="fBuses[${bi}].extraTeachers[${ti}].role=this.value;scheduleF()"
-                style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-family:inherit;background:white">
-                <option value="מורה" ${(et.role||'מורה')==='מורה'?'selected':''}>מורה</option>
-                <option value="מלווה" ${et.role==='מלווה'?'selected':''}>מלווה</option>
-              </select>
-              <button onclick="removeFExtraTeacher(${bi},${ti})" style="float:left;background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;line-height:1;padding:0" title="הסר שורה">✕</button>
-            </td>
-            <td><input type="text" value="${esc(et.name||'')}" list="team-names-list" placeholder="שם מלא"
-              oninput="fBuses[${bi}].extraTeachers[${ti}].name=this.value;fillFExtraPhone(${bi},${ti},this.value);updateBusCounts(${bi});scheduleF()"></td>
-            <td><input type="text" id="f-extra-phone-${bi}-${ti}" value="${esc(et.phone||'')}" placeholder="טלפון"
-              oninput="fBuses[${bi}].extraTeachers[${ti}].phone=this.value;scheduleF()" style="direction:ltr"></td>
-          </tr>`).join('')}
+          ${F_CREW_ROLES.map((role, ri) => {
+            const useDropdown = ri <= 1;
+            const curName = bus.crew[ri]?.name || '';
+            const inTeam  = teamMembers.some(m => m.name === curName);
+            const nameCell = useDropdown
+              ? `<select onchange="selectFCrewMember(${bi},${ri},this.value)" style="width:100%;font-size:13px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-family:inherit;background:white"><option value="">— בחר —</option>${(!inTeam && curName) ? `<option value="${esc(curName)}" selected>${esc(curName)}</option>` : ''}${teamMembers.map(m => `<option value="${esc(m.name||'')}"${curName===m.name?' selected':''}>${esc(m.name||'')}</option>`).join('')}</select>`
+              : `<input type="text" value="${esc(curName)}" placeholder="שם מלא" oninput="fBuses[${bi}].crew[${ri}].name=this.value;updateBusCounts(${bi});scheduleF()">`;
+            return `<tr>
+              <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
+              <td>${nameCell}</td>
+              <td><input type="text" id="f-phone-${bi}-${ri}" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
+                oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
+            </tr>`;
+          }).join('')}
+          ${(bus.extraTeachers||[]).map((et, ti) => {
+            const etName  = et.name || '';
+            const etInTeam = teamMembers.some(m => m.name === etName);
+            return `<tr>
+              <td style="background:#f9fffe;padding:3px 8px">
+                <select onchange="fBuses[${bi}].extraTeachers[${ti}].role=this.value;scheduleF()"
+                  style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-family:inherit;background:white">
+                  <option value="מורה" ${(et.role||'מורה')==='מורה'?'selected':''}>מורה</option>
+                  <option value="מלווה" ${et.role==='מלווה'?'selected':''}>מלווה</option>
+                </select>
+                <button onclick="removeFExtraTeacher(${bi},${ti})" style="float:left;background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;line-height:1;padding:0" title="הסר שורה">✕</button>
+              </td>
+              <td><select onchange="selectFExtraMember(${bi},${ti},this.value)" style="width:100%;font-size:13px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-family:inherit;background:white"><option value="">— בחר —</option>${(!etInTeam && etName) ? `<option value="${esc(etName)}" selected>${esc(etName)}</option>` : ''}${teamMembers.map(m => `<option value="${esc(m.name||'')}"${etName===m.name?' selected':''}>${esc(m.name||'')}</option>`).join('')}</select></td>
+              <td><input type="text" id="f-extra-phone-${bi}-${ti}" value="${esc(et.phone||'')}" placeholder="טלפון"
+                oninput="fBuses[${bi}].extraTeachers[${ti}].phone=this.value;scheduleF()" style="direction:ltr"></td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
       <div style="padding:6px 10px;border-top:1px solid #eee">
@@ -3128,12 +3139,14 @@ function removeFExtraTeacher(bi, ti) {
   renderFBuses();
   scheduleF();
 }
-function fillFExtraPhone(bi, ti, name) {
+function selectFExtraMember(bi, ti, name) {
   const member = teamMembers.find(m => m.name === name);
-  if (!member) return;
-  fBuses[bi].extraTeachers[ti].phone = member.phone;
+  fBuses[bi].extraTeachers[ti].name  = name;
+  fBuses[bi].extraTeachers[ti].phone = member?.phone || '';
   const phoneInput = document.getElementById(`f-extra-phone-${bi}-${ti}`);
-  if (phoneInput) phoneInput.value = member.phone;
+  if (phoneInput) phoneInput.value = fBuses[bi].extraTeachers[ti].phone;
+  updateBusCounts(bi);
+  scheduleF();
 }
 
 function computePlannedByClass() {
