@@ -308,6 +308,7 @@ header h1{font-size:20px;font-weight:700}
 
       <!-- Appendix tab bar -->
       <div class="appendix-tabs" id="appendixTabs">
+        <button class="appendix-tab" onclick="showAppendix('security')" id="tab-security">🔒 אישור ביטחוני</button>
         <button class="appendix-tab" onclick="showAppendix('a')" id="tab-a">א׳ – ביקורת</button>
         <button class="appendix-tab" onclick="showAppendix('b')" id="tab-b">ב׳ – אישור מנהל</button>
         <button class="appendix-tab" onclick="showAppendix('c')" id="tab-c">ג׳ – כתב מינוי</button>
@@ -1005,6 +1006,28 @@ header h1{font-size:20px;font-weight:700}
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-secondary" onclick="exportRoomsPDF(true)">🖨️ הדפס</button>
           <button class="btn btn-secondary" onclick="exportRoomsPDF(false)">⬇ ייצא PDF</button>
+        </div>
+      </div>
+
+      <!-- ══ אישור ביטחוני ══ -->
+      <div class="appendix-content" id="content-security">
+        <div class="appendix-title">אישור ביטחוני</div>
+        <div class="appendix-subtitle">העלה/י את האישור הביטחוני מהלשכה לתיאום טיולים</div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <input type="file" id="security-file-input" accept=".pdf" style="display:none" onchange="uploadSecurityFile(this)">
+          <label for="security-file-input" class="btn btn-primary" style="cursor:pointer;margin:0">📎 העלה PDF</label>
+          <button id="security-print-btn" class="btn btn-secondary" style="display:none" onclick="printSecurityApproval()">🖨️ הדפס</button>
+          <button id="security-remove-btn" class="btn btn-danger" style="display:none;font-size:13px" onclick="removeSecurityFile()">✕ הסר קובץ</button>
+          <span id="security-filename" style="font-size:13px;color:#1b4332;font-weight:600"></span>
+          <span id="security-status" style="font-size:12px;color:#888"></span>
+        </div>
+
+        <div id="security-preview-wrap" style="display:none;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden">
+          <iframe id="security-preview" style="width:100%;height:800px;border:none"></iframe>
+        </div>
+        <div id="security-empty-msg" style="color:#aaa;font-size:14px;text-align:center;padding:40px 0">
+          עדיין לא הועלה אישור ביטחוני
         </div>
       </div>
 
@@ -1856,6 +1879,7 @@ function showAppendix(id) {
   if (id === 'masa') loadMasa();
   if (id === 'rooms') loadRooms();
   if (id === 'signs') loadSigns();
+  if (id === 'security') loadSecurity();
 }
 
 // ─── Appendix א — Checklist ───────────────────────────────────────────────────
@@ -3779,6 +3803,91 @@ async function exportNotGoingPDF(printMode = false) {
     pdf.save(`נספח ז – לא יוצאים – ${t?.name||''}.pdf`);
     setStatus('g-not-going-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-not-going-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── אישור ביטחוני ────────────────────────────────────────────────────────────
+let securityApproval = null; // { fileName, dataUrl }
+
+async function loadSecurity() {
+  securityApproval = null;
+  if (currentTrip && !isLocal) {
+    try {
+      const doc = await formRef(currentTrip.id, 'security_approval').get();
+      if (doc.exists) securityApproval = doc.data();
+    } catch(e) { console.error(e); }
+  }
+  renderSecurityPreview();
+}
+
+function renderSecurityPreview() {
+  const previewWrap = document.getElementById('security-preview-wrap');
+  const iframe      = document.getElementById('security-preview');
+  const emptyMsg    = document.getElementById('security-empty-msg');
+  const printBtn    = document.getElementById('security-print-btn');
+  const removeBtn   = document.getElementById('security-remove-btn');
+  const filenameEl  = document.getElementById('security-filename');
+  if (!previewWrap) return;
+  if (securityApproval) {
+    iframe.src = securityApproval.dataUrl;
+    previewWrap.style.display = '';
+    emptyMsg.style.display    = 'none';
+    printBtn.style.display    = '';
+    removeBtn.style.display   = '';
+    filenameEl.textContent    = securityApproval.fileName;
+  } else {
+    iframe.src = '';
+    previewWrap.style.display = 'none';
+    emptyMsg.style.display    = '';
+    printBtn.style.display    = 'none';
+    removeBtn.style.display   = 'none';
+    filenameEl.textContent    = '';
+  }
+}
+
+function uploadSecurityFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('security-status');
+  status.textContent = 'טוען...';
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    securityApproval = { fileName: file.name, dataUrl: e.target.result };
+    renderSecurityPreview();
+    if (currentTrip && !isLocal) {
+      try {
+        await formRef(currentTrip.id, 'security_approval').set({
+          fileName: file.name, dataUrl: e.target.result,
+          savedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        status.textContent = 'נשמר ✓';
+      } catch(err) {
+        status.textContent = 'הקובץ גדול מדי לשמירה בענן';
+        console.error(err);
+      }
+    } else {
+      status.textContent = '';
+    }
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removeSecurityFile() {
+  securityApproval = null;
+  renderSecurityPreview();
+  if (currentTrip && !isLocal) {
+    try { await formRef(currentTrip.id, 'security_approval').delete(); } catch(e) { console.error(e); }
+  }
+}
+
+function printSecurityApproval() {
+  if (!securityApproval) return;
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>אישור ביטחוני</title>
+    <style>body{margin:0}iframe{width:100vw;height:100vh;border:none}</style></head>
+    <body><iframe src="${securityApproval.dataUrl}"></iframe></body></html>`);
+  win.document.close();
+  win.onload = () => { win.focus(); win.print(); };
 }
 
 // ─── Bus signs ────────────────────────────────────────────────────────────────
