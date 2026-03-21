@@ -2942,6 +2942,21 @@ function getClassDisplayLabel(val) {
   return val.substring(0, p) + ' (' + (parseInt(val.substring(p + 1)) + 1) + ')';
 }
 
+function updateBusCounts(bi) {
+  const b = fBuses[bi];
+  const s = calcBusStudents(b), e = calcBusEscorts(b), total = s + e;
+  const sEl = document.getElementById(`f-count-students-${bi}`);
+  const eEl = document.getElementById(`f-count-escorts-${bi}`);
+  const tEl = document.getElementById(`f-count-total-${bi}`);
+  if (sEl) sEl.textContent = s || 0;
+  if (eEl) eEl.textContent = e || 0;
+  if (tEl) {
+    tEl.textContent = total || 0;
+    tEl.style.background = total > 54 ? '#ff8a80' : 'rgba(255,255,255,0.2)';
+    tEl.style.color = total > 54 ? '#b71c1c' : '';
+  }
+}
+
 function calcBusStudents(b) {
   const planned = computePlannedByClass();
   return (b.classSelections || []).reduce((sum, val) => {
@@ -2972,11 +2987,11 @@ function renderFBuses() {
       <div style="background:#1b4332;color:white;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-weight:bold;font-size:14px">אוטובוס ${bi+1}</span>
         <label style="font-size:12px">תלמידים:</label>
-        <span style="font-size:13px;font-weight:bold;background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:4px;min-width:28px;text-align:center">${calcBusStudents(bus)||0}</span>
+        <span id="f-count-students-${bi}" style="font-size:13px;font-weight:bold;background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:4px;min-width:28px;text-align:center">${calcBusStudents(bus)||0}</span>
         <label style="font-size:12px">מלווים:</label>
-        <span style="font-size:13px;font-weight:bold;background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:4px;min-width:28px;text-align:center">${calcBusEscorts(bus)||0}</span>
+        <span id="f-count-escorts-${bi}" style="font-size:13px;font-weight:bold;background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:4px;min-width:28px;text-align:center">${calcBusEscorts(bus)||0}</span>
         <label style="font-size:12px">סה"כ באוטובוס:</label>
-        <span style="font-size:13px;font-weight:bold;padding:2px 10px;border-radius:4px;min-width:28px;text-align:center;${(calcBusStudents(bus)+calcBusEscorts(bus))>54?'background:#ff8a80;color:#b71c1c':'background:rgba(255,255,255,0.2)'}">${calcBusStudents(bus)+calcBusEscorts(bus)||0}</span>
+        <span id="f-count-total-${bi}" style="font-size:13px;font-weight:bold;padding:2px 10px;border-radius:4px;min-width:28px;text-align:center;${(calcBusStudents(bus)+calcBusEscorts(bus))>54?'background:#ff8a80;color:#b71c1c':'background:rgba(255,255,255,0.2)'}">${calcBusStudents(bus)+calcBusEscorts(bus)||0}</span>
         <button onclick="deleteFBus(${bi})" style="background:none;border:none;color:#ff8a80;cursor:pointer;font-size:18px;padding:0 4px;margin-right:auto">✕</button>
       </div>
       <div style="background:#e8f5e9;border-bottom:1px solid #c8e6c9;padding:6px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -2987,7 +3002,7 @@ function renderFBuses() {
           const optionsHtml = `<option value="">—</option>` + classOpts.map(o =>
             `<option value="${esc(o.value)}"${o.value === selVal ? ' selected' : ''}>${esc(o.label)}</option>`
           ).join('');
-          return `<select onchange="fBuses[${bi}].classSelections[${si}]=this.value;scheduleF()"
+          return `<select onchange="fBuses[${bi}].classSelections[${si}]=this.value;renderFBuses();scheduleF()"
             style="font-size:12px;padding:3px 6px;border:1px solid #a5d6a7;border-radius:4px;font-family:inherit;background:white;color:#1b4332">
             ${optionsHtml}
           </select>`;
@@ -3004,7 +3019,7 @@ function renderFBuses() {
             <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
             <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
               ${ri<=1?'list="team-names-list"':''}
-              oninput="fBuses[${bi}].crew[${ri}].name=this.value;${ri<=1?`fillFCrewPhone(${bi},${ri},this.value);`:''}scheduleF()"></td>
+              oninput="fBuses[${bi}].crew[${ri}].name=this.value;${ri<=1?`fillFCrewPhone(${bi},${ri},this.value);`:''}updateBusCounts(${bi});scheduleF()"></td>
             <td><input type="text" id="f-phone-${bi}-${ri}" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
               oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
           </tr>`).join('')}
@@ -3018,7 +3033,7 @@ function renderFBuses() {
               <button onclick="removeFExtraTeacher(${bi},${ti})" style="float:left;background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;line-height:1;padding:0" title="הסר שורה">✕</button>
             </td>
             <td><input type="text" value="${esc(et.name||'')}" list="team-names-list" placeholder="שם מלא"
-              oninput="fBuses[${bi}].extraTeachers[${ti}].name=this.value;fillFExtraPhone(${bi},${ti},this.value);scheduleF()"></td>
+              oninput="fBuses[${bi}].extraTeachers[${ti}].name=this.value;fillFExtraPhone(${bi},${ti},this.value);updateBusCounts(${bi});scheduleF()"></td>
             <td><input type="text" id="f-extra-phone-${bi}-${ti}" value="${esc(et.phone||'')}" placeholder="טלפון"
               oninput="fBuses[${bi}].extraTeachers[${ti}].phone=this.value;scheduleF()" style="direction:ltr"></td>
           </tr>`).join('')}
