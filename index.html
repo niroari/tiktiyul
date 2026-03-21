@@ -896,7 +896,8 @@ header h1{font-size:20px;font-weight:700}
       </div>
 
       <!-- ══ חלוקת חדרים ══ -->
-      <div class="appendix-content" id="content-rooms">
+      <div class="appendix-content" id="content-rooms" style="position:relative">
+        <button class="btn btn-danger" onclick="clearAllRooms()" style="position:absolute;top:16px;left:16px;font-size:13px">נקה הכל</button>
         <div class="appendix-title">חלוקת חדרים</div>
         <div class="appendix-subtitle">חלוקת תלמידים לחדרים באכסנייה — הפרדה בין בנים לבנות</div>
 
@@ -909,9 +910,6 @@ header h1{font-size:20px;font-weight:700}
             <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="radio" name="rooms-size" value="6" onchange="roomsPreferredSize=6"> 6</label>
           </div>
           <button class="btn btn-secondary" onclick="autoAssignRooms()">⚡ חלק אוטומטית</button>
-          <button class="btn btn-secondary" onclick="addRooms('ז')">+ חדר בנים</button>
-          <button class="btn btn-secondary" onclick="addRooms('נ')">+ חדר בנות</button>
-          <button class="btn btn-danger" onclick="clearAllRooms()" style="font-size:13px">נקה הכל</button>
           <span id="rooms-status" style="font-size:13px;color:#888"></span>
         </div>
         <!-- Class filter -->
