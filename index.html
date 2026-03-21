@@ -3056,9 +3056,10 @@ function renderFClassTable() {
     body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:12px;font-size:13px">ייבא רשימת תלמידים בנספח ז׳</td></tr>';
     return;
   }
-  const splitBtn = (cls) => `<button onclick="splitFClass(${JSON.stringify(cls)})"
+  const q = (cls) => cls.replace(/'/g, "\\'");
+  const splitBtn = (cls) => `<button onclick="splitFClass('${q(cls)}')"
     style="font-size:11px;padding:2px 8px;background:none;border:1px solid #aaa;border-radius:4px;cursor:pointer;color:#555;font-family:inherit">↕ פצל</button>`;
-  const unsplitBtn = (cls) => `<button onclick="unsplitFClass(${JSON.stringify(cls)})"
+  const unsplitBtn = (cls) => `<button onclick="unsplitFClass('${q(cls)}')"
     style="font-size:11px;padding:2px 8px;background:none;border:1px solid #e57373;border-radius:4px;cursor:pointer;color:#c62828;font-family:inherit">✕ בטל</button>`;
 
   body.innerHTML = classes.flatMap(cls => {
@@ -3068,7 +3069,7 @@ function renderFClassTable() {
         <td style="padding:5px 8px;font-size:13px">${esc(cls)}</td>
         <td style="text-align:center;font-size:13px;color:#333;font-weight:bold">${planned[cls]}</td>
         <td><input type="number" value="${esc(fActual[cls]||'')}" placeholder="—" min="0"
-          oninput="fActual[${JSON.stringify(cls)}]=this.value;scheduleF()" style="width:80px;text-align:center"></td>
+          oninput="fActual['${q(cls)}']=this.value;scheduleF()" style="width:80px;text-align:center"></td>
         <td style="text-align:center">${splitBtn(cls)}</td>
       </tr>`];
     }
@@ -3086,7 +3087,7 @@ function renderFClassTable() {
         <td style="padding:3px 8px 3px 20px;font-size:12px;color:#666">${partLabels[si]}</td>
         <td></td>
         <td><input type="number" value="${esc(count||'')}" placeholder="כמה תלמידים" min="0"
-          oninput="fSplits[${JSON.stringify(cls)}][${si}]=this.value;renderFClassTable();renderFBuses();scheduleF()"
+          oninput="fSplits['${q(cls)}'][${si}]=this.value;renderFClassTable();renderFBuses();scheduleF()"
           style="width:110px;text-align:center;font-size:12px"></td>
         <td></td>
       </tr>`)
