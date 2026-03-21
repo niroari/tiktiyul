@@ -33,7 +33,7 @@ users/{uid}/trips/{tripId}                  — trip metadata (owner only)
   accommodation, transport, createdAt
 
 users/{uid}/trips/{tripId}/forms/{formId}   — per-appendix data
-  formId = appendix_a ... appendix_j, masa, team
+  formId = appendix_a ... appendix_j, masa, team, security_approval
 
 users/{uid}/shared_trips/{tripId}           — pointer written when user joins a shared trip
   ownerUid, tripId, tripName, school, fromDate, toDate, joinedAt
@@ -51,7 +51,8 @@ tiyul_signatures/{uid}_{tripId}_{role}      — remote signing docs (public read
 
 | ID | Label | Content | Status |
 |----|-------|---------|--------|
-| dashboard | דשבורד | Stats cards + trip info + appendix completion + class breakdown + medical list | ✅ done |
+| dashboard | דשבורד | Stats cards → class breakdown → food prefs (collapsible) → trip info + appendix completion → medical list | ✅ done |
+| security | אישור ביטחוני | Upload a PDF of the security approval. Preview in iframe. Print button. Saves to Firestore `security_approval` doc. | ✅ done |
 | א (a) | ביקורת לפני יציאה | Checklist: ~20 rows, each with "week before" + "morning of trip" checkboxes + notes | ✅ done |
 | ב (b) | אישור מנהל ורכז | Schedule table + notes + signatures (principal + coordinator) | ✅ done |
 | ג (c) | כתב מינוי | Simple appointment letter — classes, dates, area, principal signature | ✅ done |
@@ -180,3 +181,5 @@ Page 2:
 - **Appendix ו — bus data model:** `fBuses[bi].classSelections = ['','','']` (up to 3 class values) replaces the old free-text `classes` string. Split value format: `"className|partIndex"` (0-indexed). Class splits stored in `fSplits = { [className]: ['count1','count2','count3'] }`. Both fields saved in `appendix_f` Firestore doc alongside `buses` and `actual`. Students and escorts are computed on-the-fly (`calcBusStudents`, `calcBusEscorts`) and shown read-only — not stored. Total shown in bus header; turns red if >54. `updateBusCounts(bi)` refreshes only the 3 count spans (avoids full re-render on every keystroke).
 - **Extra crew rows (appendix ו):** `bus.extraTeachers = [{role, name, phone}]`. Role dropdown: מורה / מלווה. Escort count = all filled fixed crew rows where index ≠ 2 (נהג) + all filled extraTeachers rows.
 - **Class filter (appendix ז):** `<select id="g-class-filter">` populated dynamically in `renderGTable()` from unique class values in `gStudents`. Preserves selection across re-renders by reading `classFilterEl.value` before rebuilding options.
+- **Dashboard section order:** stat cards → class breakdown → food prefs (collapsible `<details>`) → two-column grid (trip info + appendix completion) → medical list. Class breakdown and food prefs were moved above the grid so the most-scanned summary info appears first.
+- **אישור ביטחוני** (formId=`security`) — single PDF upload (same pattern as אישור הורים / med cert): read as base64 dataURL, stored in `formRef(tripId, 'security_approval')`. Preview via `<iframe src="dataUrl">`. Print opens a new window with an iframe and calls `win.print()`. Tab button sits to the left of א׳-ביקורת in the tab bar.
