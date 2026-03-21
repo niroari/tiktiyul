@@ -65,6 +65,8 @@ tiyul_signatures/{uid}_{tripId}_{role}      — remote signing docs (public read
 | י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes | ✅ done |
 | הודעת מסע (masa) | הודעת מסע של"ח | 2-page form: general info + schedule table + role holders + signatures | ✅ done |
 | rooms | חלוקת חדרים | Room assignment for hostel trips: boys/girls separated, drag-and-drop students between rooms, class filter, manual reorder (↑↓), print/PDF export | ✅ done |
+| print | נספחים נוספים להדפסה | 6 static printable forms (no data entry): נספח ט"ו (bus inspection, from Word file, compact mode for 1 page) + נספחי ז', ט', י"א, י"ב, י"ג (from PDF). Print individually or all at once. No Firestore. | ✅ done |
+| signs | שילוט אוטובוסים | School logo (URL or file upload), add buses (number + classes text), print A4 landscape sign per bus with giant text. Saves to Firestore under formId 'signs'. | ✅ done |
 
 ---
 
@@ -168,3 +170,6 @@ Page 2:
 - **Gotcha (temporal dead zone):** module-level `let` variables used by boot-time functions must be declared in the `// ─── State ───` section BEFORE the boot code. Declaring them later causes silent async crashes.
 - **Print buttons:** every export function takes `printMode = false`. When `true`, calls `doPrint(html)` → `#print-area` + `window.print()`. All appendices follow this pattern.
 - **Appendix ז PDF page breaks:** skipped — browser handles page breaks natively via print button.
+- **Appendix ז — "לא יוצאים" modal** — button appears only when at least one student has `going === false`. Modal auto-refreshes when `toggleGoing` is called while modal is open. Shared filter+sort logic lives in `getNotGoingStudents()` helper.
+- **נספחים נוספים להדפסה** (formId=`print`) — static HTML forms, no Firestore. Source: "נספחים להדפסה.pdf" + "נספח טו...docx". נספח ט"ו uses `printPrintForm(id, compact=true)` — smaller margins/font to fit on one A4 page. Other forms use default (compact=false).
+- **שילוט אוטובוסים** (formId=`signs`) — prints via `window.open()` (not `doPrint`) because `@page { size: landscape }` only works in a standalone document. Each sign is a `div.sign-page` with `height:100vh`. Page breaks via `.sign-page + .sign-page { page-break-before: always }` — avoids blank trailing page that `page-break-after: always` would add after the last sign.
