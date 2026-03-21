@@ -2947,23 +2947,57 @@ function renderFBuses() {
           <th style="background:#2d6a4f">שם</th>
           <th style="background:#2d6a4f;width:150px">טלפון</th>
         </tr></thead>
-        <tbody>${F_CREW_ROLES.map((role, ri) => `<tr>
-          <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
-          <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
-            ${ri<=1?'list="team-names-list"':''}
-            oninput="fBuses[${bi}].crew[${ri}].name=this.value;${ri<=1?`fillFCrewPhone(${bi},${ri},this.value);`:''}scheduleF()"></td>
-          <td><input type="text" id="f-phone-${bi}-${ri}" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
-            oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
-        </tr>`).join('')}</tbody>
+        <tbody>
+          ${F_CREW_ROLES.map((role, ri) => `<tr>
+            <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">${role}</td>
+            <td><input type="text" value="${esc(bus.crew[ri]?.name||'')}" placeholder="שם מלא"
+              ${ri<=1?'list="team-names-list"':''}
+              oninput="fBuses[${bi}].crew[${ri}].name=this.value;${ri<=1?`fillFCrewPhone(${bi},${ri},this.value);`:''}scheduleF()"></td>
+            <td><input type="text" id="f-phone-${bi}-${ri}" value="${esc(bus.crew[ri]?.phone||'')}" placeholder="טלפון"
+              oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
+          </tr>`).join('')}
+          ${(bus.extraTeachers||[]).map((et, ti) => `<tr>
+            <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">
+              <span>מורה נוסף ${ti+2}</span>
+              <button onclick="removeFExtraTeacher(${bi},${ti})" style="float:left;background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;line-height:1;padding:0" title="הסר שורה">✕</button>
+            </td>
+            <td><input type="text" value="${esc(et.name||'')}" list="team-names-list" placeholder="שם מלא"
+              oninput="fBuses[${bi}].extraTeachers[${ti}].name=this.value;fillFExtraPhone(${bi},${ti},this.value);scheduleF()"></td>
+            <td><input type="text" id="f-extra-phone-${bi}-${ti}" value="${esc(et.phone||'')}" placeholder="טלפון"
+              oninput="fBuses[${bi}].extraTeachers[${ti}].phone=this.value;scheduleF()" style="direction:ltr"></td>
+          </tr>`).join('')}
+        </tbody>
       </table>
+      <div style="padding:6px 10px;border-top:1px solid #eee">
+        <button onclick="addFExtraTeacher(${bi})" style="font-size:12px;padding:4px 10px;background:none;border:1px solid #2d6a4f;color:#2d6a4f;border-radius:4px;cursor:pointer;font-family:inherit">+ הוסף מורה נוסף</button>
+      </div>
     </div>`).join('');
 }
 
 function addFBus() {
-  fBuses.push({ classes:'', students:'', escorts:'', crew: F_CREW_ROLES.map(r => ({ role:r, name:'', phone:'' })) });
+  fBuses.push({ classes:'', students:'', escorts:'', crew: F_CREW_ROLES.map(r => ({ role:r, name:'', phone:'' })), extraTeachers: [] });
   renderFBuses();
 }
 function deleteFBus(i) { fBuses.splice(i, 1); renderFBuses(); scheduleF(); }
+
+function addFExtraTeacher(bi) {
+  if (!fBuses[bi].extraTeachers) fBuses[bi].extraTeachers = [];
+  fBuses[bi].extraTeachers.push({ name:'', phone:'' });
+  renderFBuses();
+  scheduleF();
+}
+function removeFExtraTeacher(bi, ti) {
+  fBuses[bi].extraTeachers.splice(ti, 1);
+  renderFBuses();
+  scheduleF();
+}
+function fillFExtraPhone(bi, ti, name) {
+  const member = teamMembers.find(m => m.name === name);
+  if (!member) return;
+  fBuses[bi].extraTeachers[ti].phone = member.phone;
+  const phoneInput = document.getElementById(`f-extra-phone-${bi}-${ti}`);
+  if (phoneInput) phoneInput.value = member.phone;
+}
 
 function computePlannedByClass() {
   const counts = {};
@@ -3060,6 +3094,21 @@ async function exportFPDF(printMode = false) {
       ${fBuses.map(b => td(esc(b.crew[ri]?.phone||''), ';direction:ltr')).join('')}
     </tr>`).join('');
 
+  // Extra teacher rows (across all buses — aligned by index)
+  const maxExtra = Math.max(0, ...fBuses.map(b => (b.extraTeachers||[]).length));
+  const extraCrewRows = Array.from({length: maxExtra}, (_, ei) => `
+    <tr style="background:#d4edda">
+      <td colspan="${n+1}" style="padding:3px 6px;border:1px solid #bbb;font-size:9px;font-weight:bold;color:#1b4332">מורה נוסף ${ei+2}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 6px;border:1px solid #ccc;font-size:8px;color:#555;background:#f9f9f9">שם</td>
+      ${fBuses.map(b => td(esc((b.extraTeachers||[])[ei]?.name||''))).join('')}
+    </tr>
+    <tr>
+      <td style="padding:3px 6px;border:1px solid #ccc;font-size:8px;color:#555;background:#f9f9f9">טלפון</td>
+      ${fBuses.map(b => td(esc((b.extraTeachers||[])[ei]?.phone||''), ';direction:ltr')).join('')}
+    </tr>`).join('');
+
   const totalStudents = fBuses.reduce((s, b) => s + (parseInt(b.students)||0), 0);
   const totalEscorts  = fBuses.reduce((s, b) => s + (parseInt(b.escorts)||0), 0);
 
@@ -3103,6 +3152,7 @@ async function exportFPDF(printMode = false) {
           ${fBuses.map(b => td(esc(b.classes||''))).join('')}
         </tr>
         ${crewRows}
+        ${extraCrewRows}
         <tr style="background:#e8f5e9">
           <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;font-weight:bold">מספר תלמידים</td>
           ${fBuses.map(b => td(`<strong>${esc(b.students||'')}</strong>`)).join('')}
