@@ -3614,7 +3614,7 @@ function buildSignHtml(bus) {
   const logoHtml = logo
     ? `<img src="${logo}" style="position:absolute;top:10mm;left:10mm;max-height:88mm;max-width:80mm;object-fit:contain" onerror="this.style.display='none'">`
     : '';
-  return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  return `<div class="sign-page" style="display:flex;flex-direction:column;align-items:center;justify-content:center;
     border:8px solid #1b4332;box-sizing:border-box;position:relative;background:white;
     font-family:Arial,'Noto Sans Hebrew',sans-serif;direction:rtl;padding:10mm 16mm">
     ${logoHtml}
@@ -3627,17 +3627,28 @@ function buildSignHtml(bus) {
   </div>`;
 }
 
+function openSignPrintWindow(bodyHtml) {
+  const win = window.open('', '_blank', 'width=1000,height=750');
+  win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><style>
+    @page { size: A4 landscape; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: white; }
+    .sign-page { width: 297mm; height: 210mm; overflow: hidden; page-break-after: always; }
+    .sign-page:last-child { page-break-after: avoid; }
+  </style></head><body>${bodyHtml}</body></html>`);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); win.close(); }, 500);
+}
+
 function printBusSign(i) {
   const bus = signsData.buses[i];
   if (!bus) return;
-  doPrint(`<style>@page{size:A4 landscape;margin:0}*{box-sizing:border-box}#print-area{width:297mm;height:210mm;overflow:hidden}</style>${buildSignHtml(bus)}`);
+  openSignPrintWindow(buildSignHtml(bus));
 }
 
 function printAllBusSigns() {
   if (!signsData.buses.length) return;
-  const parts = signsData.buses.map((bus, i) =>
-    (i > 0 ? '<div style="page-break-before:always"></div>' : '') + buildSignHtml(bus));
-  doPrint(`<style>@page{size:A4 landscape;margin:0}*{box-sizing:border-box}#print-area{width:297mm;height:210mm;overflow:hidden}</style>${parts.join('')}`);
+  openSignPrintWindow(signsData.buses.map(buildSignHtml).join(''));
 }
 
 // ─── Print-only appendices ────────────────────────────────────────────────────
