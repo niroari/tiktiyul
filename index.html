@@ -2262,7 +2262,7 @@ async function exportBPDF(printMode = false) {
         const sig = bSigs[role];
         return `<div style="flex:1;text-align:center;font-size:9px">
           <div style="font-weight:bold;margin-bottom:4px">${labels[i]}</div>
-          ${sig ? `<img src="${sig}" style="max-height:50px;max-width:100%;display:block;margin:0 auto">` : '<div style="height:50px;border-bottom:1px solid #aaa;margin:0 8px"></div>'}
+          ${isSafeSig(sig) ? `<img src="${sig}" style="max-height:50px;max-width:100%;display:block;margin:0 auto">` : '<div style="height:50px;border-bottom:1px solid #aaa;margin:0 8px"></div>'}
         </div>`;
       }).join('')}
     </div>
@@ -2348,7 +2348,7 @@ function renderCRemoteSig() {
   const sendBtn  = document.getElementById('c-principal-send-btn');
   const refBtn   = document.getElementById('c-principal-refresh-btn');
   if (!statusEl) return;
-  if (cSigStatus === 'signed' && cSig) {
+  if (cSigStatus === 'signed' && isSafeSig(cSig)) {
     statusEl.innerHTML = `<span class="sig-badge signed">✓ חתם/ה</span><div class="sig-img-box"><img src="${cSig}" style="max-width:100%;max-height:70px"></div>`;
     sendBtn.textContent = 'שלח שוב ↗';
     refBtn.style.display = 'none';
@@ -2369,7 +2369,8 @@ async function sendCSigLink() {
   const docId = cSigDocId();
   if (!isLocal) {
     try {
-      await sigsRef().doc(docId).set({ uid: currentUser.uid, tripId: currentTrip.id, role: 'c_principal', roleName: 'מנהל/ת ביה"ס', tripName: t.name, schoolName: t.school, leaderName: t.leaderName||'', status: 'pending', signature: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const cSigExpiry = new Date(); cSigExpiry.setDate(cSigExpiry.getDate() + 30);
+      await sigsRef().doc(docId).set({ uid: currentUser.uid, tripId: currentTrip.id, role: 'c_principal', roleName: 'מנהל/ת ביה"ס', tripName: t.name, schoolName: t.school, leaderName: t.leaderName||'', status: 'pending', signature: null, createdAt: firebase.firestore.FieldValue.serverTimestamp(), expiresAt: firebase.firestore.Timestamp.fromDate(cSigExpiry) });
     } catch(e) { alert('שגיאה: ' + e.message); return; }
   }
   cSigStatus = 'pending';
@@ -3848,6 +3849,11 @@ function uploadSecurityFile(input) {
   const file = input.files[0];
   if (!file) return;
   const status = document.getElementById('security-status');
+  if (file.size > 700 * 1024) {
+    status.textContent = 'הקובץ גדול מדי (מעל 700KB). נסה/י לדחוס את ה-PDF לפני ההעלאה.';
+    input.value = '';
+    return;
+  }
   status.textContent = 'טוען...';
   const reader = new FileReader();
   reader.onload = async function(e) {
@@ -5150,7 +5156,8 @@ async function exportMasaPDF(printMode=false) {
 // ─── Trip sharing ──────────────────────────────────────────────────────────────
 async function shareTripLink() {
   if (!currentTrip || !currentUser || currentTrip._shared) return;
-  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(24))).map(b => b.toString(16).padStart(2,'0')).join('');
+  const inviteExpiry = new Date(); inviteExpiry.setDate(inviteExpiry.getDate() + 30);
   const data = {
     ownerUid: currentUser.uid,
     tripId:   currentTrip.id,
@@ -5158,7 +5165,8 @@ async function shareTripLink() {
     school:   currentTrip.school   || '',
     fromDate: currentTrip.fromDate || '',
     toDate:   currentTrip.toDate   || '',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: firebase.firestore.Timestamp.fromDate(inviteExpiry)
   };
   try {
     await db.collection('tiyul_invites').doc(token).set(data);
@@ -5181,6 +5189,11 @@ async function loadJoinPage(token) {
       return;
     }
     const d = doc.data();
+    if (d.expiresAt && d.expiresAt.toDate() < new Date()) {
+      metaEl.innerHTML = '<span style="color:#c0392b">פג תוקף הקישור (30 ימים). בקש/י קישור חדש.</span>';
+      document.getElementById('join-login-area').style.display = 'none';
+      return;
+    }
     const dates = d.fromDate && d.toDate ? `${formatDate(d.fromDate)} – ${formatDate(d.toDate)}` : '';
     metaEl.innerHTML = `<strong style="font-size:16px;color:#1b4332">${esc(d.tripName||'')}</strong><br>${d.school ? esc(d.school)+'<br>' : ''}${dates}`;
     auth.onAuthStateChanged(async user => {
@@ -5256,7 +5269,7 @@ function renderMasaPrincipalRemoteSig() {
   const refBtn   = document.getElementById('masa-principal-refresh-btn');
   if (!statusEl) return;
   const sig = masaData && masaData.principalSig;
-  if (masaPrincipalSigStatus === 'signed' && sig) {
+  if (masaPrincipalSigStatus === 'signed' && isSafeSig(sig)) {
     statusEl.innerHTML = `<span class="sig-badge signed">✓ חתם/ה</span><div class="sig-img-box"><img src="${sig}" style="max-width:100%;max-height:70px"></div>`;
     sendBtn.textContent = 'שלח שוב ↗';
     refBtn.style.display = 'none';
@@ -5295,7 +5308,8 @@ async function sendMasaPrincipalSigLink() {
     role: 'masa_principal', roleName: 'מנהל/ת ביה"ס',
     tripName: t.name, schoolName: t.school, leaderName: t.leaderName||'',
     status: 'pending', signature: null,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: (() => { const d = new Date(); d.setDate(d.getDate()+30); return firebase.firestore.Timestamp.fromDate(d); })()
   };
   if (!isLocal) {
     try { await sigsRef().doc(docId).set(data); } catch(e) { alert('שגיאה: ' + e.message); return; }
@@ -5398,7 +5412,7 @@ function renderBRemoteSig(role) {
   if (!statusEl) return;
   const st = bSigStatus[role];
   const sig = bSigs[role];
-  if (st === 'signed' && sig) {
+  if (st === 'signed' && isSafeSig(sig)) {
     statusEl.innerHTML = `<span class="sig-badge signed">✓ חתם/ה</span><div class="sig-img-box"><img src="${sig}" style="max-width:100%;max-height:70px"></div>`;
     sendBtn.textContent = 'שלח שוב ↗';
     refBtn.style.display = 'none';
@@ -5437,7 +5451,8 @@ async function sendBSigLink(role) {
     role, roleName: ROLE_LABELS[role],
     tripName: t.name, schoolName: t.school, leaderName: t.leaderName||'',
     status: 'pending', signature: null,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt: (() => { const d = new Date(); d.setDate(d.getDate()+30); return firebase.firestore.Timestamp.fromDate(d); })()
   };
   if (!isLocal) {
     try { await sigsRef().doc(docId).set(data); } catch(e) { alert('שגיאה: ' + e.message); return; }
@@ -5505,6 +5520,12 @@ async function loadSignPage(docId) {
       return;
     }
     const d = doc.data();
+    if (d.expiresAt && d.expiresAt.toDate() < new Date()) {
+      document.getElementById('sign-meta').textContent = 'פג תוקף הקישור (30 ימים). בקש/י קישור חדש מאחראי/ת הטיול.';
+      document.getElementById('sign-submit-btn').style.display = 'none';
+      document.getElementById('sign-canvas').style.display = 'none';
+      return;
+    }
     document.getElementById('sign-role-title').textContent = d.roleName || 'חתימה';
     document.getElementById('sign-meta').innerHTML =
       `טיול: <strong>${esc(d.tripName||'')}</strong><br>בית ספר: <strong>${esc(d.schoolName||'')}</strong><br>אחראי/ת: <strong>${esc(d.leaderName||'')}</strong>`;
@@ -5889,7 +5910,10 @@ function formatDate(d) {
   return `${day}/${m}/${y}`;
 }
 function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function isSafeSig(s) {
+  return typeof s === 'string' && s.startsWith('data:image/png;base64,');
 }
 </script>
 </body>
