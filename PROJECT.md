@@ -58,11 +58,12 @@ tiyul_signatures/{uid}_{tripId}_{role}      — remote signing docs (public read
 | ד (d) | לוח זמנים | Dynamic table: day / time / activity+place / notes | ✅ done |
 | ה (e) | טלפונים חיוניים | Two parts: essential contacts (fixed rows) + bus crew table (dynamic, per bus) | ✅ done |
 | team | צוות הטיול | Table of staff: name / role / phone. Autocomplete feeds into נספח ו מורה fields | ✅ done |
-| ו (f) | טבלת שליטה | Bus control table: classes, teacher, driver, security, guide, counts | ✅ done |
-| ז (g) | רשימת תלמידים | Excel import (with gender), display by class with going/not-going toggle | ✅ done |
+| ו (f) | טבלת שליטה | Bus control table: 3 class dropdowns per bus (split-aware), extra crew rows (מורה/מלווה), auto-computed student+escort counts, red warning >54, class split tool in summary table | ✅ done |
+| ז (g) | רשימת תלמידים | Excel import (with gender), display by class with going/not-going toggle, class filter dropdown | ✅ done |
 | ח (h) | אישור הורים | Upload a PDF specific to each trip (not a built form) | ✅ done |
 | ט (i) | ציוד חובה | Static checklist + option to add custom items | ✅ done |
-| י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes | ✅ done |
+| י (j) | מגבלות רפואיות | Table: student name / class / medical issue / supervision notes. Autocomplete input. Per-student medical certificate upload (PDF/image). | ✅ done |
+| food | העדפות מזון | Select students (autocomplete), mark vegetarian/vegan, gluten-free, food sensitivity + free text detail. Firestore `food_prefs`. Dashboard stat card. | ✅ done |
 | הודעת מסע (masa) | הודעת מסע של"ח | 2-page form: general info + schedule table + role holders + signatures | ✅ done |
 | rooms | חלוקת חדרים | Room assignment for hostel trips: boys/girls separated, drag-and-drop students between rooms, class filter, manual reorder (↑↓), print/PDF export | ✅ done |
 | print | נספחים נוספים להדפסה | 6 static printable forms (no data entry): נספח ט"ו (bus inspection, from Word file, compact mode for 1 page) + נספחי ז', ט', י"א, י"ב, י"ג (from PDF). Print individually or all at once. No Firestore. | ✅ done |
@@ -173,3 +174,9 @@ Page 2:
 - **Appendix ז — "לא יוצאים" modal** — button appears only when at least one student has `going === false`. Modal auto-refreshes when `toggleGoing` is called while modal is open. Shared filter+sort logic lives in `getNotGoingStudents()` helper.
 - **נספחים נוספים להדפסה** (formId=`print`) — static HTML forms, no Firestore. Source: "נספחים להדפסה.pdf" + "נספח טו...docx". נספח ט"ו uses `printPrintForm(id, compact=true)` — smaller margins/font to fit on one A4 page. Other forms use default (compact=false).
 - **שילוט אוטובוסים** (formId=`signs`) — prints via `window.open()` (not `doPrint`) because `@page { size: landscape }` only works in a standalone document. Each sign is a `div.sign-page` with `height:100vh`. Page breaks via `.sign-page + .sign-page { page-break-before: always }` — avoids blank trailing page that `page-break-after: always` would add after the last sign.
+- **Student autocomplete (appendix י + food prefs):** `<input list="...">` + `<datalist>` pattern. Options formatted as `"${last} ${first} (${class})"`. On add, match by that exact string. **Gotcha:** JS string args in `onclick`/`oninput` attributes must use single quotes, not `JSON.stringify` — `JSON.stringify` wraps in double quotes which breaks the HTML attribute.
+- **Medical certificate upload (appendix י):** Per-student file (PDF/image) read as base64 dataURL and saved to its own Firestore doc `med_cert_{studentId}` (not inside `appendix_j`) to stay well under the 1MB document limit. All certs for existing rows loaded in parallel on tab open.
+- **Dashboard button:** Moved from the tab bar into the trip header card (next to ✏️ עריכה and 🔗 שתף). Active state via `#trip-dashboard-btn.active` CSS. `showAppendix` calls `classList.toggle('active', id==='dashboard')` on it.
+- **Appendix ו — bus data model:** `fBuses[bi].classSelections = ['','','']` (up to 3 class values) replaces the old free-text `classes` string. Split value format: `"className|partIndex"` (0-indexed). Class splits stored in `fSplits = { [className]: ['count1','count2','count3'] }`. Both fields saved in `appendix_f` Firestore doc alongside `buses` and `actual`. Students and escorts are computed on-the-fly (`calcBusStudents`, `calcBusEscorts`) and shown read-only — not stored. Total shown in bus header; turns red if >54. `updateBusCounts(bi)` refreshes only the 3 count spans (avoids full re-render on every keystroke).
+- **Extra crew rows (appendix ו):** `bus.extraTeachers = [{role, name, phone}]`. Role dropdown: מורה / מלווה. Escort count = all filled fixed crew rows where index ≠ 2 (נהג) + all filled extraTeachers rows.
+- **Class filter (appendix ז):** `<select id="g-class-filter">` populated dynamically in `renderGTable()` from unique class values in `gStudents`. Preserves selection across re-renders by reading `classFilterEl.value` before rebuilding options.
