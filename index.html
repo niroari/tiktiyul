@@ -174,6 +174,12 @@ header h1{font-size:20px;font-weight:700}
   body > *:not(#print-area) { display: none !important; }
   #print-area { display: block !important; position: static !important; }
 }
+.print-form-card{border:1px solid #e0e0e0;border-radius:10px;margin-bottom:24px;overflow:hidden}
+.print-form-hdr{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#f0f7f4;border-bottom:1px solid #ddd;font-weight:600;font-size:14px;gap:10px}
+.print-form-preview{padding:20px 28px;font-size:13px;direction:rtl;line-height:2.2;font-family:Arial,'Noto Sans Hebrew',sans-serif;color:#222}
+.print-form-preview p{margin:6px 0}
+.print-form-preview .section-title{font-weight:bold;font-size:13px;margin:14px 0 4px}
+.print-form-preview .sub-item{padding-right:16px}
 </style>
 </head>
 <body>
@@ -314,6 +320,7 @@ header h1{font-size:20px;font-weight:700}
         <button class="appendix-tab" onclick="showAppendix('j')" id="tab-j">י׳ – מגבלות רפואיות</button>
         <button class="appendix-tab" onclick="showAppendix('masa')" id="tab-masa">הודעת מסע</button>
         <button class="appendix-tab" onclick="showAppendix('rooms')" id="tab-rooms">חלוקת חדרים</button>
+        <button class="appendix-tab" onclick="showAppendix('print')" id="tab-print">🖨️ נספחים להדפסה</button>
       </div>
 
       <!-- ══ Appendix א – ביקורת לפני יציאה ══ -->
@@ -965,6 +972,228 @@ header h1{font-size:20px;font-weight:700}
           <button class="btn btn-secondary" onclick="exportRoomsPDF(false)">⬇ ייצא PDF</button>
         </div>
       </div>
+
+      <!-- ══ Print-only appendices ══ -->
+      <div class="appendix-content" id="content-print">
+        <div class="appendix-title">נספחים להדפסה</div>
+        <div class="appendix-subtitle">טפסים שיש לקחת לטיול — אין צורך למלא באתר, רק להדפיס ולהביא</div>
+
+        <div style="margin-bottom:24px">
+          <button class="btn btn-primary" style="font-size:14px" onclick="printAllPrintForms()">🖨️ הדפס את כל הנספחים</button>
+        </div>
+
+        <!-- ─── נספח ז' ─── -->
+        <div class="print-form-card">
+          <div class="print-form-hdr">
+            <span>נספח ז׳ — טיפול רפואי לתלמיד/ה שנפגע/ה במהלך טיול</span>
+            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-1')">🖨️ הדפס</button>
+          </div>
+          <div id="pf-1" class="print-form-preview">
+            <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
+              <div style="font-size:11px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+              <div style="font-size:16px;font-weight:bold;margin:4px 0">נספח ז׳</div>
+              <div style="font-size:14px;font-weight:bold">טיפול רפואי לתלמיד/ה שנפגע/ה במהלך טיול</div>
+            </div>
+            <p>לכבוד: ביה"ח / קופ"ח ______________________________</p>
+            <p style="margin-top:12px"><strong>הנדון: טיפול רפואי לתלמיד/ה שנפגע/ה במהלך טיול</strong></p>
+            <p>התלמיד/ה שפרטיו/ה רשומים להלן נפגע/ה במהלך שהותו/ה בטיול של ביה"ס.</p>
+            <p>שם התלמיד/ה: _______________________ שם האב/האם: _______________________ כיתה: _______</p>
+            <p>מס' ת.ז של התלמיד/ה: _________________________________</p>
+            <p>כתובת מגורים: ____________________________________________________________________________</p>
+            <p>מס' טלפון של התלמיד/ה בבית: ________________________ סלולרי: _____________________________</p>
+            <p>קופ"ח בה מבוטחים הוריו/ה: __________________________________________________________________</p>
+            <p>תאריך הפגיעה: _________________ שעה: _________ מקום: ______________________________________</p>
+            <p>מהות הפגיעה:</p>
+            <p>___________________________________________________________________________________________</p>
+            <p>___________________________________________________________________________________________</p>
+            <p>___________________________________________________________________________________________</p>
+            <div style="margin-top:24px">שם האחראי/ת על הטיול: _______________________________</div>
+            <div style="display:flex;gap:80px;margin-top:16px">
+              <div>חתימה: ___________________________</div>
+              <div>חותמת ביה"ס: ___________________________</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── נספח ט' ─── -->
+        <div class="print-form-card">
+          <div class="print-form-hdr">
+            <span>נספח ט׳ — טופס ביטוח למתנדב</span>
+            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-2')">🖨️ הדפס</button>
+          </div>
+          <div id="pf-2" class="print-form-preview">
+            <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
+              <div style="font-size:11px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+              <div style="font-size:16px;font-weight:bold;margin:4px 0">נספח ט׳</div>
+              <div style="font-size:14px;font-weight:bold">טופס ביטוח למתנדב</div>
+            </div>
+            <p>הריני לאשר בזה כי המתנדב/ת ___________________________</p>
+            <p>מס' ת.ז: _____________________</p>
+            <p>כתובת: ____________________________________________ מס' טלפון: _______________________</p>
+            <p>התנדב/ה לעבוד בתפקיד: ________________________________________________________________________</p>
+            <p>למען: _____________________________________________________________________________________</p>
+            <p style="font-size:12px;color:#555">(יש לציין את זהות הגוף או האדם שהפעולה נעשית למענו וכן את מקום הפעולה)</p>
+            <p>מתאריך: _________________ עד תאריך: _________________ לתקופה של: _________ ימים</p>
+            <div style="margin-top:20px;border:1px solid #ccc;border-radius:6px;padding:14px">
+              <table style="width:100%;border-collapse:collapse;text-align:right;font-size:13px">
+                <tr>
+                  <th style="border-bottom:1px solid #ddd;padding:6px 8px">שם נותן ההפניה</th>
+                  <th style="border-bottom:1px solid #ddd;padding:6px 8px">תפקידו</th>
+                  <th style="border-bottom:1px solid #ddd;padding:6px 8px">תאריך</th>
+                  <th style="border-bottom:1px solid #ddd;padding:6px 8px">חותמת ביה"ס וחתימה</th>
+                </tr>
+                <tr>
+                  <td style="padding:18px 8px"></td>
+                  <td style="padding:18px 8px"></td>
+                  <td style="padding:18px 8px"></td>
+                  <td style="padding:18px 8px"></td>
+                </tr>
+              </table>
+            </div>
+            <div style="margin-top:16px;border:1px solid #ccc;border-radius:6px;padding:14px">
+              <div style="font-weight:bold;margin-bottom:10px">אישור המתנדב/ת לקבלת התפקיד:</div>
+              <div style="display:flex;gap:80px">
+                <div>שם: _______________________</div>
+                <div>חתימה: _______________________</div>
+              </div>
+            </div>
+            <p style="margin-top:14px;font-size:12px;color:#555">העתק: תיק טיולים של ביה"ס.</p>
+          </div>
+        </div>
+
+        <!-- ─── נספח י"א ─── -->
+        <div class="print-form-card">
+          <div class="print-form-hdr">
+            <span>נספח י"א — הוראות פתיחה באש למאבטח בטיול</span>
+            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-3')">🖨️ הדפס</button>
+          </div>
+          <div id="pf-3" class="print-form-preview">
+            <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
+              <div style="font-size:11px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+              <div style="font-size:16px;font-weight:bold;margin:4px 0">נספח י"א</div>
+              <div style="font-size:14px;font-weight:bold">הוראות פתיחה באש — למאבטח בטיול</div>
+            </div>
+            <p>להלן הוראות משטרת ישראל בנושא של פתיחה באש. ההוראות הן כלליות ומותאמות לכלל נושאי הנשק, ולא רק לנושאי האקדחים מטעם משרד החינוך. על נושא הנשק לקרוא היטב את ההוראות, לבדוק אם הבין אותן ולנהוג לפיהן.</p>
+            <p>במקרה של ספק בהבנת ההוראות יש לפנות לקב"ט הרשות לקבלת הסבר.</p>
+
+            <div class="section-title">כללים בדבר פתיחה באש — עקרונות כלליים</div>
+            <p>בנוהל זה יפורטו כללים מנחים, הוראות וסייגים בכל הנוגע לשימוש בכלי ירייה ולפתיחה באש על ידי עובדים מאבטחים הנושאים נשק בתוקף תפקידם.</p>
+            <p class="sub-item">א- כלי ירייה הוא אמצעי קטלני שהשימוש בו עלול לסכן את חיו או שלמות גופו של האדם שהירי יכוון אליו ושל האחרים, לפיכך ייעשה השימוש בנשק בהתאם לאמור בכללים אלו.</p>
+            <p class="sub-item">ב- כלי ירייה הם מי שנושאים נשק בתוקף תפקידם.</p>
+            <p class="sub-item">ג- השימוש בנשק כלפי אדם מותר לשם הגנה עצמית של הירויה או של זולתו.</p>
+            <p style="font-size:12px;color:#555">הכללים בנוהל זה מבוססים על הוראות סעיפים ז' ו' י' 34-34 בחוק העונשין התשל"ז – 1977, שפורסם בספר החוקים 1441 וכונקת (תיקון מס' 39) ד"נשתה.</p>
+
+            <div class="section-title">הגנה עצמית — כללים</div>
+            <p>השימוש בכלי ירייה לצורך הגנה עצמית ייעשה כאמצעי אחרון, כאשר אין בנסיבות העניין דרך אחרת להתגבר על הכוח.</p>
+            <p class="sub-item">א- השימוש בנשק כלפי אדם מותר לשם הגנה עצמית של הירויה או של זולתה.</p>
+            <p class="sub-item">ב- יש להפסיק את היריות מיד כאשר פסקה הפגיעה ואין עוד סכנה לחיים.</p>
+            <p class="sub-item">ג- הירייה תבוצע בירי "בודד", מכוון, ולשם הדיפת ההתקפה בלבד.</p>
+
+            <div class="section-title">פתיחה באש במקרה של סכנת חיים</div>
+            <div class="section-title" style="font-size:12px;font-weight:normal;color:#555">תורגד</div>
+            <p class="sub-item">1- סכנת חיים — סכנה לאבדן חייו של אדם או לחבלה מסוכנת בגופו.</p>
+            <p class="sub-item">2- נשק חם — כלי ירייה, רימון יד, בקבוק תבערה, מטען נפץ.</p>
+            <p class="sub-item">3- נשק קר — סכין, פגיון, ניסורן, גרזן, אלות ומוטות ברזל.</p>
+            <p class="sub-item">4- אזהרה מוקדמת — הודעה על כוונה לפתוח באש אם ההתקפה לא תיפסק.</p>
+
+            <p class="sub-item">א- מותר לפתוח באש לעבר גוף התוקף לצורך הדיפת ההתקפה המסכנת חיים, על מנת למנוע ממנו את השלמת מעשה ההתקפה. יש להפסיק את היריות מיד כשהפסיקה ההתקפה ולא תהיה עוד סכנת חיים.</p>
+            <p class="sub-item">ב- פתיחה באש תיעשה רק כאמצעי אחרון, לאחר שנשקלו ומוצו דרכים אחרות לעצירת ההתקפה, לרבות מתן אזהרה מוקדמת, ובלבד שבכך לא יהיה כדי לסכן את חייו ואת זולתו.</p>
+            <p class="sub-item">ג- ניתן לפתוח באש אם התוקף ניסה עם כלי נשקו, ועדיין מסכן חיים, כדי למנוע המשך ההתקפה. אם התוקף נמלט ללא נשק, אין לירות בו.</p>
+            <p class="sub-item">ד- אין לפתוח באש לשם הגנה על רכוש כאשר אין מתלווית לגניבת הרכוש סכנת חיים.</p>
+            <p class="sub-item">ה- יש להימנע ככל האפשר מירי לעבר נשים או ילדים.</p>
+            <p class="sub-item">ו- מותר השימוש לצורך פגיעה בעבריינים בריחה למניעת פגיעה בחפים מפשע.</p>
+            <p class="sub-item">ז- לעצירת עבריין הבורח.</p>
+            <p class="sub-item">ח- למניעת פגיעה בחפים מפשע.</p>
+
+            <div class="section-title">תולועפ רחאל יריה</div>
+            <p class="sub-item">א- דיווח — חייב מוקדם האפשרי לדווח על כל מקרה של שימוש בכלי ירייה לתחנת המשטרה הקרובה, לקב"ט הרשות ולקב"ט המחוזי של משרד החינוך.</p>
+            <p class="sub-item">ב- סריקה — יש לבצע סריקה לאיתור נפגעים נוספים או נזק לרכוש.</p>
+            <p class="sub-item">ג- בידוד אזור היריה — יש למנוע כניסת אנשים לאזור היריה עד לסיום הבדיקה המשטרתית.</p>
+            <p class="sub-item">ד- דוח קב"ט הרשות — קב"ט הרשות / קב"ט מסו"ח יכין דוח מפורט אחרי כל מקרה של פתיחה באש, ישלח אותו לקב"ט הזוחמ ויעבירו הוא לקצין הביטחון של משטרת ישראל ויעבירו לאגף הביטחון בדרשמ בצירוף התייחסות.</p>
+
+            <div style="margin-top:28px;border-top:1px solid #ccc;padding-top:16px">
+              <p>הריני לאשר כי קראתי את הוראות פתיחה באש, הבנתי את תוכנם ומתחייב/ת לפעול בהתאם.</p>
+              <div style="display:flex;gap:60px;margin-top:14px;flex-wrap:wrap">
+                <div>שם: ___________________________</div>
+                <div>חתימה: ___________________________</div>
+                <div>תאריך: ___________________________</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── נספח י"ב ─── -->
+        <div class="print-form-card">
+          <div class="print-form-hdr">
+            <span>נספח י"ב — הנחיות לאחראי/ת אוטובוס בטיולים</span>
+            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-4')">🖨️ הדפס</button>
+          </div>
+          <div id="pf-4" class="print-form-preview">
+            <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
+              <div style="font-size:11px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+              <div style="font-size:16px;font-weight:bold;margin:4px 0">נספח י"ב</div>
+              <div style="font-size:14px;font-weight:bold">הנחיות לאחראי/ת אוטובוס בטיולים</div>
+            </div>
+            <p>על המורה/מחנך שהוא אחראי אוטובוס להתייצב בנקודת המפגש <strong>10 דקות לפני שעת האיסוף</strong> לקראת עלייתם של התלמידים לאוטובוס ולבדוק את האוטובוס:</p>
+            <p class="sub-item">א- שאין בו חפץ חשוד.</p>
+            <p class="sub-item">ב- לבדוק נוכחות ארגז עזרה ראשונה, ערכת מילוט וחנוקלה מעל מושב הנהג.</p>
+            <p class="sub-item">ג- שגיל האוטובוס לא יעלה על 10 שנים.</p>
+            <p class="sub-item">ד- שבאוטובוס קיימת מערכת קשר חיצונית, או טלפון נייד ומערכת כריזה פנימית.</p>
+            <p class="sub-item">ה- לבדוק אצל הנהג אישור בטיחות חודשי תקף מטעם קצין הבטיחות של החברה.</p>
+            <p class="sub-item">ו- לבדוק אצל הנהג אישור הסעת תלמידים בניישרון או בטופס מצורף.</p>
+            <p>2. לקבל מאחראי/ת טיול את רשימת היוצאים, לערוך רשימה שמותם (יש לוודא שמספר התלמידים היושבים באוטובוס תואם לרשימה השמית) — 3 עותקים: עותק אחד יישאר בידיו, עותק שני יימסר לאחראי טיול, עותק שלישי יימסר לנציג ההנהלה הנשאר בביה"ס.</p>
+            <p>3. יש לבצע אצל התלמידים בדיקת כובעים, מים, ציוד, לבוש ונעליים המתאימות להליכה.</p>
+            <p>4. יש לבדוק נוכחות מגיש עזרה ראשונה, מלווים נוספים וחטבאמ בהתאם לנדרש באישור הביטחוני.</p>
+            <p>5. יש להזכיר לתלמידים לשבת במהלך הנסיעה, לרכוז חגורת בטיחות, ואין להוציא כל חלק מהגוף מהחלון ואין לכלכל את האוטובוס.</p>
+            <p>6. אין להשאיר תלמיד/ה באוטובוס ללא פיקוח מורה מלווה.</p>
+            <p>7. לפני הירידה מהאוטובוס על המלווה/החטבאמ/יארחאה לרדת ראשון לבדוק את השטח מסביב לאוטובוס ואם אין הנכסה לתלמידים — תינתן הוראה לתלמידים לרדת. פיזור התלמידים במהלך הירידה — הירידה, ואך ורק מהדלת הקדמית שדרי הנהג. פיזור במהלך ירידה בדרך — ייעשה רק בתחנות אגד, ואם השתחרר הציוד מתא המטען חל איסור מוחלט על הורדה ללא פיקוח מורה/מלווה מצד הכביש.</p>
+            <p>8. אחראי/ת אוטובוס מורה לא יעזוב את האוטובוס לפני שהתלמיד האחרון ירד. יש לבצע סריקה בתום הנסיעה כדי לוודא שלא נרדם תלמיד או שנשאר ציוד באוטובוס.</p>
+            <p>9. מורה אחראי/ת אוטובוס יחתום לנהג על הוויזה בתום הנסיעה וירשום לעצמו שעת התייצבות, הרכב, שעת סיום הנסיעה — יש למסור פרטים אלו לאחראי/ת טיול.</p>
+          </div>
+        </div>
+
+        <!-- ─── נספח י"ג ─── -->
+        <div class="print-form-card">
+          <div class="print-form-hdr">
+            <span>נספח י"ג — הנחיות לאחראי/ת מורה כתה בהליכה בשטח</span>
+            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-5')">🖨️ הדפס</button>
+          </div>
+          <div id="pf-5" class="print-form-preview">
+            <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
+              <div style="font-size:11px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+              <div style="font-size:16px;font-weight:bold;margin:4px 0">נספח י"ג</div>
+              <div style="font-size:14px;font-weight:bold">הנחיות לאחראי/ת מורה כתה בהליכה בשטח</div>
+            </div>
+            <p style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;font-weight:600">לידיעתך! האחריות לשלומם, לבריאותם ולביטחונם של התלמידים בטיול מוטלת על המורה המלווה את הכתה. גם אם הוא אינו מחנך הכתה, יש לעשות הכל כדי להחזירם בשלום לביתם.</p>
+            <p>לפני תחילת ההליכה על המורה/מחנך אחראי הכתה:</p>
+            <p>1. לספור את התלמידים היוצאים, לצייד את עצמו בציוד אישי: עבוכ, מים, לבוש ונעלים מתאימות להליכה, ברשימה שמית מעודכנת הכוללת מגבלות בריאותיות להליכה בשטח.</p>
+            <p>2. לוודא שהתלמידים לוקחים לשטח:</p>
+            <p class="sub-item">— כובע, מים, אוכל</p>
+            <p class="sub-item">— תרמיל עזרה ראשונה כיתתי (ותרופות לנזקקים במיוחד)</p>
+            <p class="sub-item">— כלים מלאים במים לנשיאה</p>
+            <p>3. לוודא נוכחות מגיש עזרה ראשונה מוסמך וחטבאמ המלווים את הכתה בשטח.</p>
+            <p>4. יש להזכיר לתלמידים לפני ההליכה את כללי הבטיחות הבאים:</p>
+            <p class="sub-item">א- אין לעזוב את הקבוצה בהליכה ובחניות, ללא קבלת רשות.</p>
+            <p class="sub-item">ב- אין לסטות מהמסלול ההליכה, אין לעקוף ולבצע קיצורי דרך.</p>
+            <p class="sub-item">ג- אין לגעת בחפצים חשודים בשטח, כולל זה נשק המלווים.</p>
+            <p class="sub-item">ד- אין להתקרב לצוקים.</p>
+            <p class="sub-item">ה- הרחצה בבורות ובבריכות שבתוך הנחלים אסורה לחלוטין.</p>
+            <p class="sub-item">ו- אין לנקסיד ולא ללכת ולשמוע דיסקמן ולהשתמש בטלפונים.</p>
+            <p class="sub-item">ז- יש ללכת כל הזמן עם כובע על הראש ולשתות כמות מספקת של מים.</p>
+            <p class="sub-item">ח- במקרה של ניתוק כתה של תלמיד בודד או מספר תלמידים, עליהם/ן לשבת במקום ולהמתין עד שיגיעו המחלצים לאסוף את התלמידים/ות.</p>
+            <p>5. ההליכה בשיירה עורפית: הכריד הולך בראש השיירה, מחנך/ת באמצע, מלווה מאבטח נושא קשנ בסוף. הליכה בשעת החשיכה והלילה אסורה לחלוטין.</p>
+            <p>6. במקרה של ניתוק מהשיירה יש להעביר לכריד הידיעה המיידית לעצור ולהאט את קצב ההליכה.</p>
+            <p>7. על המורה/מחנך לספור את התלמידים אחרי כל חניה ומדי שעה ולוודא שכולם נמצאים בשיירה במהלך ההליכה.</p>
+            <p>8. אם נפגע/ה תלמיד/ה — תגיש/י עזרה ראשונה, בדוק/י את חומרת הפגיעה.</p>
+            <p class="sub-item">א- יש לדווח מיידית למחנך/ת ולמדריך/ה של הקבוצה ולאחראי/ת טיול.</p>
+            <p class="sub-item">ב- אם יפנוי תלמיד מהמסלול לפי שיקולי מרחק וכמות המלווים בקבוצה. אין לפנות תלמיד ללא ליווי של אדם מבוגר המכיר את המסלול.</p>
+            <p class="sub-item">ג- אם נפקשנ לתלמיד סכנת חיים יש להפסיק את הטיול ולהזעיק עזרה רפואית מגרם חיצוני באמצעות חדר המצב של משרד החינוך <strong>02-6222211</strong> ולקבל הנחיות לגבי המשך.</p>
+            <p class="sub-item">ד- אם נראה למורה שמסלול הטיול אינו בטיחותי עליו לפנות את תשומת לב הכריד ולהפסיק את ההליכה המשך מיידית.</p>
+            <p>9. מורה מלווה אחראי/ת כתה שנפגעה/נפגע בטיול ואושפזה/ו לחדר ניתוח — ימלא/תמלא המורה המלווה טופס של ביה"ס (נספח ז׳). אם יתבקש על ידי המוסד הרפואי, יחתום על כתב התחייבות. בתום הטיול ימלא טופס פצוע ס"היב בסמנייה — הדוח ישלח לחברת הביטוח ואמורה לכסות על ההוצאות.</p>
+          </div>
+        </div>
+
+      </div><!-- /content-print -->
 
     </div><!-- /tripDetailView -->
   </div><!-- /container -->
@@ -3161,6 +3390,24 @@ async function exportNotGoingPDF(printMode = false) {
     pdf.save(`נספח ז – לא יוצאים – ${t?.name||''}.pdf`);
     setStatus('g-not-going-status', 'PDF יוצא בהצלחה ✓');
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-not-going-status', 'שגיאה בייצוא'); console.error(e); }
+}
+
+// ─── Print-only appendices ────────────────────────────────────────────────────
+function printPrintForm(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  doPrint(`<div style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;padding:15mm 20mm;font-size:13px;line-height:2.2;color:#222">${el.innerHTML}</div>`);
+}
+
+function printAllPrintForms() {
+  const ids = ['pf-1','pf-2','pf-3','pf-4','pf-5'];
+  const parts = ids.map((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    return (i > 0 ? '<div style="page-break-before:always"></div>' : '') +
+      `<div style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;padding:15mm 20mm;font-size:13px;line-height:2.2;color:#222">${el.innerHTML}</div>`;
+  });
+  doPrint(parts.join(''));
 }
 
 // ─── Appendix ח — אישור הורים ─────────────────────────────────────────────────
