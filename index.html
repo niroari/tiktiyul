@@ -3632,12 +3632,12 @@ function openSignPrintWindow(bodyHtml) {
   win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><style>
     @page { size: A4 landscape; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: white; }
-    .sign-page { width: 297mm; height: 210mm; overflow: hidden; page-break-after: always; }
-    .sign-page:last-child { page-break-after: avoid; }
+    html, body { width: 100%; background: white; }
+    .sign-page { width: 100%; height: 100vh; overflow: hidden; }
+    .sign-page + .sign-page { page-break-before: always; }
   </style></head><body>${bodyHtml}</body></html>`);
   win.document.close();
-  setTimeout(() => { win.focus(); win.print(); win.close(); }, 500);
+  win.onload = function() { win.focus(); win.print(); win.close(); };
 }
 
 function printBusSign(i) {
