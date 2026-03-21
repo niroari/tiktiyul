@@ -2712,6 +2712,7 @@ async function loadDashboard() {
       if (fBuses.length === 0)     toLoad.push(formRef(t.id,'appendix_f').get());   else toLoad.push(Promise.resolve(null));
       if (jRows.length === 0)      toLoad.push(formRef(t.id,'appendix_j').get());   else toLoad.push(Promise.resolve(null));
       if (foodRows.length === 0)   toLoad.push(formRef(t.id,'food_prefs').get());   else toLoad.push(Promise.resolve(null));
+      toLoad.push(formRef(t.id,'security_approval').get()); // index 5 — always re-check
 
       // Completion check — all form docs
       const FORM_IDS = ['appendix_a','appendix_b','appendix_c','appendix_d','appendix_e',
@@ -2724,9 +2725,10 @@ async function loadDashboard() {
       if (results[2]?.exists) { fBuses = results[2].data().buses || []; }
       if (results[3]?.exists) { jRows     = results[3].data().rows || []; }
       if (results[4]?.exists) { foodRows  = results[4].data().rows || []; }
+      securityApproval = results[5]?.exists ? results[5].data() : null;
 
       // Build completion map
-      const completionDocs = results.slice(5);
+      const completionDocs = results.slice(6);
       window._dashCompletion = {};
       FORM_IDS.forEach((fid, i) => { window._dashCompletion[fid] = completionDocs[i]?.exists || false; });
     } catch(e) { console.error(e); }
@@ -2804,6 +2806,16 @@ function renderDashboard() {
       ${statCard('⚕️', medCount||'0', 'מגבלות רפואיות', medCount > 0 ? '#c0392b' : '#1b4332')}
       ${statCard('🍽️', foodCount||'0', 'העדפות מזון', foodCount > 0 ? '#e67e22' : '#1b4332')}
     </div>
+
+    <!-- Security approval warning -->
+    ${!securityApproval ? `
+    <div onclick="showAppendix('security')" style="cursor:pointer;display:flex;align-items:center;gap:12px;background:#fff3cd;border:2px solid #f0ad4e;border-radius:10px;padding:14px 18px;margin-bottom:20px">
+      <span style="font-size:28px">⚠️</span>
+      <div>
+        <div style="font-weight:700;font-size:15px;color:#856404">אישור ביטחוני חסר</div>
+        <div style="font-size:13px;color:#a07000;margin-top:2px">טרם הועלה אישור ביטחוני לטיול זה — לחץ/י להעלאה</div>
+      </div>
+    </div>` : ''}
 
     <!-- Class breakdown -->
     ${classLines ? `<div class="section-title">פילוח לפי כיתה</div><div style="margin-bottom:16px">${classLines}</div>` : ''}
