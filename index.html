@@ -2957,8 +2957,12 @@ function renderFBuses() {
               oninput="fBuses[${bi}].crew[${ri}].phone=this.value;scheduleF()" style="direction:ltr"></td>
           </tr>`).join('')}
           ${(bus.extraTeachers||[]).map((et, ti) => `<tr>
-            <td style="font-size:13px;color:#444;background:#f9fffe;padding:5px 8px">
-              <span>מורה נוסף ${ti+2}</span>
+            <td style="background:#f9fffe;padding:3px 8px">
+              <select onchange="fBuses[${bi}].extraTeachers[${ti}].role=this.value;scheduleF()"
+                style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-family:inherit;background:white">
+                <option value="מורה" ${(et.role||'מורה')==='מורה'?'selected':''}>מורה</option>
+                <option value="מלווה" ${et.role==='מלווה'?'selected':''}>מלווה</option>
+              </select>
               <button onclick="removeFExtraTeacher(${bi},${ti})" style="float:left;background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;line-height:1;padding:0" title="הסר שורה">✕</button>
             </td>
             <td><input type="text" value="${esc(et.name||'')}" list="team-names-list" placeholder="שם מלא"
@@ -2982,7 +2986,7 @@ function deleteFBus(i) { fBuses.splice(i, 1); renderFBuses(); scheduleF(); }
 
 function addFExtraTeacher(bi) {
   if (!fBuses[bi].extraTeachers) fBuses[bi].extraTeachers = [];
-  fBuses[bi].extraTeachers.push({ name:'', phone:'' });
+  fBuses[bi].extraTeachers.push({ role:'מורה', name:'', phone:'' });
   renderFBuses();
   scheduleF();
 }
@@ -3098,7 +3102,11 @@ async function exportFPDF(printMode = false) {
   const maxExtra = Math.max(0, ...fBuses.map(b => (b.extraTeachers||[]).length));
   const extraCrewRows = Array.from({length: maxExtra}, (_, ei) => `
     <tr style="background:#d4edda">
-      <td colspan="${n+1}" style="padding:3px 6px;border:1px solid #bbb;font-size:9px;font-weight:bold;color:#1b4332">מורה נוסף ${ei+2}</td>
+      <td colspan="${n+1}" style="padding:3px 6px;border:1px solid #bbb;font-size:9px;font-weight:bold;color:#1b4332">נוסף ${ei+2}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px 6px;border:1px solid #ccc;font-size:8px;color:#555;background:#f9f9f9">תפקיד</td>
+      ${fBuses.map(b => td(esc((b.extraTeachers||[])[ei]?.role||''))).join('')}
     </tr>
     <tr>
       <td style="padding:3px 6px;border:1px solid #ccc;font-size:8px;color:#555;background:#f9f9f9">שם</td>
