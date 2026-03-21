@@ -2921,9 +2921,11 @@ function renderGTable() {
 function toggleGoing(studentId) {
   const s = gStudents.find(s => s.id === studentId);
   if (!s) return;
-  s.going = s.going === false; // false → true, or true → false
+  s.going = s.going !== false ? false : true; // any truthy/undefined → false (not going); false → true (going)
   renderGTable();
   saveAppendixG();
+  const modal = document.getElementById('g-not-going-modal');
+  if (modal && modal.style.display !== 'none') showNotGoingModal();
 }
 
 async function saveAppendixG() {
@@ -3041,9 +3043,13 @@ async function exportGPDF(printMode = false) {
   } catch(e) { pdfEl.style.display = 'none'; setStatus('g-status', 'שגיאה בייצוא'); console.error(e); }
 }
 
-function showNotGoingModal() {
-  const notGoing = [...gStudents].filter(s => s.going === false)
+function getNotGoingStudents() {
+  return [...gStudents].filter(s => s.going === false)
     .sort((a, b) => { const c = a.class.localeCompare(b.class,'he'); return c !== 0 ? c : a.last.localeCompare(b.last,'he'); });
+}
+
+function showNotGoingModal() {
+  const notGoing = getNotGoingStudents();
   document.getElementById('g-not-going-modal-count').textContent = `${notGoing.length} תלמידים`;
   const rows = notGoing.map((s, i) =>
     `<tr style="${i%2===0?'':'background:#fff5f5'}">
@@ -3068,9 +3074,9 @@ function showNotGoingModal() {
 }
 
 async function exportNotGoingPDF(printMode = false) {
+  if (!currentTrip) return;
   const t = currentTrip;
-  const notGoing = [...gStudents].filter(s => s.going === false)
-    .sort((a, b) => { const c = a.class.localeCompare(b.class,'he'); return c !== 0 ? c : a.last.localeCompare(b.last,'he'); });
+  const notGoing = getNotGoingStudents();
   if (notGoing.length === 0) return;
 
   const grouped = [];
