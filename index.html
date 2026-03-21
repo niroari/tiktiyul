@@ -3169,7 +3169,7 @@ async function exportFPDF(printMode = false) {
   const busHeaders = fBuses.map((b, bi) => {
     const clsLabels = (b.classSelections||[]).filter(v=>v).map(v => getClassDisplayLabel(v)).join(', ');
     return `<th style="padding:5px 6px;border:1px solid #999;font-size:9px;font-weight:bold;background:#1b4332;color:white;text-align:center;min-width:110px">
-      אוטובוס ${bi+1}${clsLabels ? '<br><span style="font-weight:normal;font-size:8px">'+esc(clsLabels)+'</span>' : ''}
+      אוטובוס ${bi+1}${b.students ? '<br><span style="font-weight:normal;font-size:8px">'+esc(b.students)+' תלמידים</span>' : ''}
     </th>`;
   }).join('');
 
