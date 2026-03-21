@@ -593,8 +593,9 @@ header h1{font-size:20px;font-weight:700}
           <table class="sched-table" id="f-class-table">
             <thead><tr>
               <th>כיתה</th>
-              <th style="width:130px">מתוכנן (יוצאים)</th>
-              <th style="width:130px">בפועל</th>
+              <th style="width:100px">מתוכנן</th>
+              <th style="width:130px">בפועל / חלקים</th>
+              <th style="width:90px"></th>
             </tr></thead>
             <tbody id="f-class-body"></tbody>
           </table>
@@ -2915,6 +2916,31 @@ const F_CREW_ROLES = ['מורה אחראי/ת', 'מורה נוסף', 'נהג', '
 
 let fBuses  = [];
 let fActual = {}; // { [className]: actualCount } — planned comes from gStudents
+let fSplits = {}; // { [className]: ['count1','count2','count3'] } — split parts per class
+
+// Returns {value, label}[] for the bus class dropdowns
+function getFClassOptions() {
+  const planned = computePlannedByClass();
+  const opts = [];
+  Object.keys(planned).sort((a, b) => a.localeCompare(b, 'he')).forEach(cls => {
+    if (fSplits[cls]) {
+      fSplits[cls].forEach((count, si) => {
+        opts.push({ value: `${cls}|${si}`, label: `${cls} (${si+1})${count ? ' – ' + count + ' תלמ׳' : ''}` });
+      });
+    } else {
+      opts.push({ value: cls, label: `${cls} – ${planned[cls]} תלמ׳` });
+    }
+  });
+  return opts;
+}
+
+// Converts a stored classSelections value to a short display label
+function getClassDisplayLabel(val) {
+  if (!val) return '';
+  const p = val.lastIndexOf('|');
+  if (p === -1) return val;
+  return val.substring(0, p) + ' (' + (parseInt(val.substring(p + 1)) + 1) + ')';
+}
 
 function renderFBuses() {
   const container = document.getElementById('f-buses-container');
@@ -2927,10 +2953,6 @@ function renderFBuses() {
     <div style="margin-bottom:16px;border:1px solid #ccc;border-radius:8px;overflow:hidden">
       <div style="background:#1b4332;color:white;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-weight:bold;font-size:14px">אוטובוס ${bi+1}</span>
-        <label style="font-size:12px">כיתות:</label>
-        <input type="text" value="${esc(bus.classes||'')}" placeholder="ז׳1, ז׳2"
-          oninput="fBuses[${bi}].classes=this.value;scheduleF()"
-          style="width:100px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white;direction:rtl">
         <label style="font-size:12px">תלמידים:</label>
         <input type="number" value="${esc(bus.students||'')}" placeholder="0" min="0"
           oninput="fBuses[${bi}].students=this.value;scheduleF()"
@@ -2940,6 +2962,20 @@ function renderFBuses() {
           oninput="fBuses[${bi}].escorts=this.value;scheduleF()"
           style="width:60px;font-size:12px;padding:3px 6px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.15);color:white">
         <button onclick="deleteFBus(${bi})" style="background:none;border:none;color:#ff8a80;cursor:pointer;font-size:18px;padding:0 4px;margin-right:auto">✕</button>
+      </div>
+      <div style="background:#e8f5e9;border-bottom:1px solid #c8e6c9;padding:6px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:#1b4332;font-weight:600">כיתות:</label>
+        ${[0,1,2].map(si => {
+          const selVal = (bus.classSelections||[])[si] || '';
+          const classOpts = getFClassOptions();
+          const optionsHtml = `<option value="">—</option>` + classOpts.map(o =>
+            `<option value="${esc(o.value)}"${o.value === selVal ? ' selected' : ''}>${esc(o.label)}</option>`
+          ).join('');
+          return `<select onchange="fBuses[${bi}].classSelections[${si}]=this.value;scheduleF()"
+            style="font-size:12px;padding:3px 6px;border:1px solid #a5d6a7;border-radius:4px;font-family:inherit;background:white;color:#1b4332">
+            ${optionsHtml}
+          </select>`;
+        }).join('')}
       </div>
       <table class="sched-table" style="margin:0">
         <thead><tr>
@@ -2979,7 +3015,7 @@ function renderFBuses() {
 }
 
 function addFBus() {
-  fBuses.push({ classes:'', students:'', escorts:'', crew: F_CREW_ROLES.map(r => ({ role:r, name:'', phone:'' })), extraTeachers: [] });
+  fBuses.push({ classSelections:['','',''], students:'', escorts:'', crew: F_CREW_ROLES.map(r => ({ role:r, name:'', phone:'' })), extraTeachers: [] });
   renderFBuses();
 }
 function deleteFBus(i) { fBuses.splice(i, 1); renderFBuses(); scheduleF(); }
@@ -3017,22 +3053,69 @@ function renderFClassTable() {
   const planned = computePlannedByClass();
   const classes = Object.keys(planned).sort((a, b) => a.localeCompare(b, 'he'));
   if (classes.length === 0) {
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:12px;font-size:13px">ייבא רשימת תלמידים בנספח ז׳</td></tr>';
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:12px;font-size:13px">ייבא רשימת תלמידים בנספח ז׳</td></tr>';
     return;
   }
-  body.innerHTML = classes.map(cls => `<tr>
-    <td style="padding:5px 8px;font-size:13px">${esc(cls)}</td>
-    <td style="text-align:center;font-size:13px;color:#333;font-weight:bold">${planned[cls]}</td>
-    <td><input type="number" value="${esc(fActual[cls]||'')}" placeholder="—" min="0"
-      oninput="fActual[${JSON.stringify(cls)}]=this.value;scheduleF()" style="width:80px;text-align:center"></td>
-  </tr>`).join('');
+  const splitBtn = (cls) => `<button onclick="splitFClass(${JSON.stringify(cls)})"
+    style="font-size:11px;padding:2px 8px;background:none;border:1px solid #aaa;border-radius:4px;cursor:pointer;color:#555;font-family:inherit">↕ פצל</button>`;
+  const unsplitBtn = (cls) => `<button onclick="unsplitFClass(${JSON.stringify(cls)})"
+    style="font-size:11px;padding:2px 8px;background:none;border:1px solid #e57373;border-radius:4px;cursor:pointer;color:#c62828;font-family:inherit">✕ בטל</button>`;
+
+  body.innerHTML = classes.flatMap(cls => {
+    const isSplit = !!fSplits[cls];
+    if (!isSplit) {
+      return [`<tr>
+        <td style="padding:5px 8px;font-size:13px">${esc(cls)}</td>
+        <td style="text-align:center;font-size:13px;color:#333;font-weight:bold">${planned[cls]}</td>
+        <td><input type="number" value="${esc(fActual[cls]||'')}" placeholder="—" min="0"
+          oninput="fActual[${JSON.stringify(cls)}]=this.value;scheduleF()" style="width:80px;text-align:center"></td>
+        <td style="text-align:center">${splitBtn(cls)}</td>
+      </tr>`];
+    }
+    // Split rows
+    const parts = fSplits[cls]; // ['count1','count2','count3']
+    const partLabels = ['חלק א׳','חלק ב׳','חלק ג׳'];
+    return [
+      `<tr style="background:#fff8e1">
+        <td style="padding:5px 8px;font-size:13px;font-weight:bold">${esc(cls)}</td>
+        <td style="text-align:center;font-size:13px;color:#333;font-weight:bold">${planned[cls]}</td>
+        <td style="font-size:11px;color:#888;text-align:center">סה"כ: ${parts.reduce((s,v)=>s+(parseInt(v)||0),0) || '—'}</td>
+        <td style="text-align:center">${unsplitBtn(cls)}</td>
+      </tr>`,
+      ...parts.map((count, si) => `<tr style="background:#fffde7">
+        <td style="padding:3px 8px 3px 20px;font-size:12px;color:#666">${partLabels[si]}</td>
+        <td></td>
+        <td><input type="number" value="${esc(count||'')}" placeholder="כמה תלמידים" min="0"
+          oninput="fSplits[${JSON.stringify(cls)}][${si}]=this.value;renderFClassTable();renderFBuses();scheduleF()"
+          style="width:110px;text-align:center;font-size:12px"></td>
+        <td></td>
+      </tr>`)
+    ];
+  }).join('');
+}
+
+function splitFClass(cls) {
+  fSplits[cls] = ['', '', ''];
+  renderFClassTable();
+  renderFBuses();
+  scheduleF();
+}
+function unsplitFClass(cls) {
+  delete fSplits[cls];
+  // clear any bus selections referencing this class's parts
+  fBuses.forEach(b => {
+    if (b.classSelections) b.classSelections = b.classSelections.map(v => v.startsWith(cls + '|') ? '' : v);
+  });
+  renderFClassTable();
+  renderFBuses();
+  scheduleF();
 }
 
 let _fSaveTimer = null;
 function scheduleF() { clearTimeout(_fSaveTimer); _fSaveTimer = setTimeout(saveAppendixF, 800); }
 
 async function loadAppendixF() {
-  fBuses = []; fActual = {};
+  fBuses = []; fActual = {}; fSplits = {};
   if (!currentTrip || isLocal) { renderFBuses(); renderFClassTable(); return; }
   try {
     // Load bus/actual data, student list and team in parallel
@@ -3044,6 +3127,9 @@ async function loadAppendixF() {
     if (fDoc.exists) {
       fBuses  = fDoc.data().buses  || [];
       fActual = fDoc.data().actual || {};
+      fSplits = fDoc.data().splits || {};
+      // backward compat: ensure each bus has classSelections
+      fBuses.forEach(b => { if (!b.classSelections) b.classSelections = ['', '', '']; });
     }
     if (gDoc && gDoc.exists) {
       gStudents = (gDoc.data().students || []).map(s => ({ ...s, going: s.going !== false }));
@@ -3062,7 +3148,7 @@ async function saveAppendixF() {
   if (!currentTrip || isLocal) { setStatus('f-status', 'נשמר ✓'); return; }
   try {
     await formRef(currentTrip.id, 'appendix_f').set({
-      buses: fBuses, actual: fActual,
+      buses: fBuses, actual: fActual, splits: fSplits,
       savedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     setStatus('f-status', 'נשמר ✓');
@@ -3079,10 +3165,12 @@ async function exportFPDF(printMode = false) {
   const tdL = (content, extra='') => `<td style="padding:4px 6px;border:1px solid #ccc;font-size:9px${extra}">${content}</td>`;
 
   // Header row: label col + one col per bus
-  const busHeaders = fBuses.map((b, bi) =>
-    `<th style="padding:5px 6px;border:1px solid #999;font-size:9px;font-weight:bold;background:#1b4332;color:white;text-align:center;min-width:110px">
-      אוטובוס ${bi+1}${b.classes ? '<br><span style="font-weight:normal;font-size:8px">'+esc(b.classes)+'</span>' : ''}
-    </th>`).join('');
+  const busHeaders = fBuses.map((b, bi) => {
+    const clsLabels = (b.classSelections||[]).filter(v=>v).map(v => getClassDisplayLabel(v)).join(', ');
+    return `<th style="padding:5px 6px;border:1px solid #999;font-size:9px;font-weight:bold;background:#1b4332;color:white;text-align:center;min-width:110px">
+      אוטובוס ${bi+1}${clsLabels ? '<br><span style="font-weight:normal;font-size:8px">'+esc(clsLabels)+'</span>' : ''}
+    </th>`;
+  }).join('');
 
   // One section per crew role: grey header row + שם row + טלפון row
   const crewRows = F_CREW_ROLES.map((role, ri) => `
@@ -3157,7 +3245,7 @@ async function exportFPDF(printMode = false) {
       <tbody>
         <tr style="background:#e8f5e9">
           <td style="padding:4px 6px;border:1px solid #ccc;font-size:9px;font-weight:bold">כיתות</td>
-          ${fBuses.map(b => td(esc(b.classes||''))).join('')}
+          ${fBuses.map(b => td(esc((b.classSelections||[]).filter(v=>v).map(v=>getClassDisplayLabel(v)).join(', ')))).join('')}
         </tr>
         ${crewRows}
         ${extraCrewRows}
