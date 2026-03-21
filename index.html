@@ -610,6 +610,19 @@ header h1{font-size:20px;font-weight:700}
           <input type="file" id="g-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importGFile(this)">
         </div>
 
+        <!-- Upload instructions (hidden once file is loaded) -->
+        <div id="g-instructions" style="background:#f0f7ff;border:1px solid #c5dbf5;border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#334;line-height:1.8">
+          <div style="font-weight:600;margin-bottom:6px">כיצד לייצא את הרשימה מהמשו״ב:</div>
+          <ol style="margin:0;padding-right:18px">
+            <li>כנס/י למשו״ב ← <strong>ניהול תלמידים</strong> ← <strong>רשימות</strong></li>
+            <li>בחר/י <strong>רשימת שמות שכבתית</strong></li>
+            <li>ייצא/י לקובץ Excel וכלול/י את השדות הבאים:<br>
+              <span style="display:inline-block;margin-top:4px;background:#dbeafe;border-radius:4px;padding:2px 8px;font-family:monospace">ת.ז &nbsp;|&nbsp; שם משפחה &nbsp;|&nbsp; שם פרטי &nbsp;|&nbsp; כיתה &nbsp;|&nbsp; מקבילה &nbsp;|&nbsp; מין &nbsp;|&nbsp; טלפון</span>
+            </li>
+            <li>העלה/י את הקובץ כאן למעלה</li>
+          </ol>
+        </div>
+
         <!-- Controls row -->
         <div id="g-controls" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
           <span id="g-count" style="font-size:13px;color:#555"></span>
@@ -2842,9 +2855,10 @@ function sortedStudents() {
 
 function renderGTable() {
   const hasStudents = gStudents.length > 0;
-  document.getElementById('g-controls').style.display    = hasStudents ? 'flex' : 'none';
-  document.getElementById('g-table-wrap').style.display  = hasStudents ? 'block' : 'none';
-  document.getElementById('g-upload-area').style.display = hasStudents ? 'none' : '';
+  document.getElementById('g-controls').style.display      = hasStudents ? 'flex' : 'none';
+  document.getElementById('g-table-wrap').style.display    = hasStudents ? 'block' : 'none';
+  document.getElementById('g-upload-area').style.display   = hasStudents ? 'none' : '';
+  document.getElementById('g-instructions').style.display  = hasStudents ? 'none' : '';
   if (!hasStudents) { setStatus('g-status', ''); return; }
 
   const rows = sortedStudents();
