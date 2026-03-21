@@ -613,6 +613,9 @@ header h1{font-size:20px;font-weight:700}
         <button id="g-clear-btn" class="btn btn-danger" onclick="clearGStudents()" style="position:absolute;top:16px;left:16px;font-size:13px;display:none">הסר קובץ</button>
         <div class="appendix-title">נספח ז׳ – רשימת תלמידים</div>
         <div class="appendix-subtitle">ייבוא מקובץ Excel • מיון ע"פ כיתה ושם</div>
+        <div id="g-count-row" style="display:none;text-align:center;margin:10px 0 4px;font-size:15px;font-weight:600;color:#1b4332">
+          <span id="g-count"></span>
+        </div>
 
         <!-- Upload area -->
         <div id="g-upload-area" style="border:2px dashed #bbb;border-radius:10px;padding:24px;text-align:center;margin-bottom:16px;cursor:pointer;background:#fafffe" onclick="document.getElementById('g-file-input').click()">
@@ -637,7 +640,6 @@ header h1{font-size:20px;font-weight:700}
 
         <!-- Controls row -->
         <div id="g-controls" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-          <span id="g-count" style="font-size:13px;color:#555"></span>
           <div style="display:flex;align-items:center;gap:6px;margin-right:auto;flex-wrap:wrap">
             <label style="font-size:13px;white-space:nowrap">כיתה:</label>
             <select id="g-class-filter" class="form-control" style="width:auto;font-size:13px;padding:4px 8px" onchange="renderGTable()">
@@ -3452,6 +3454,7 @@ function sortedStudents() {
 function renderGTable() {
   const hasStudents = gStudents.length > 0;
   document.getElementById('g-controls').style.display      = hasStudents ? 'flex' : 'none';
+  document.getElementById('g-count-row').style.display     = hasStudents ? 'block' : 'none';
   document.getElementById('g-table-wrap').style.display    = hasStudents ? 'block' : 'none';
   document.getElementById('g-upload-area').style.display   = hasStudents ? 'none' : '';
   document.getElementById('g-instructions').style.display  = hasStudents ? 'none' : '';
