@@ -598,7 +598,8 @@ header h1{font-size:20px;font-weight:700}
       </div>
 
       <!-- ══ Appendix ז ══ -->
-      <div class="appendix-content" id="content-g">
+      <div class="appendix-content" id="content-g" style="position:relative">
+        <button id="g-clear-btn" class="btn btn-danger" onclick="clearGStudents()" style="position:absolute;top:16px;left:16px;font-size:13px;display:none">הסר קובץ</button>
         <div class="appendix-title">נספח ז׳ – רשימת תלמידים</div>
         <div class="appendix-subtitle">ייבוא מקובץ Excel • מיון ע"פ כיתה ושם</div>
 
@@ -2773,6 +2774,17 @@ async function exportFPDF(printMode = false) {
 // ─── Appendix ז — רשימת תלמידים ──────────────────────────────────────────────
 let gStudents = []; // { id, last, first, class, phone }
 
+async function clearGStudents() {
+  if (!confirm('להסיר את רשימת התלמידים?')) return;
+  gStudents = [];
+  document.getElementById('g-file-input').value = '';
+  renderGTable();
+  if (!currentTrip || isLocal) return;
+  try {
+    await formRef(currentTrip.id, 'appendix_g').set({ students: [], savedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  } catch(e) { console.error(e); }
+}
+
 async function loadAppendixG() {
   gStudents = [];
   if (!currentTrip || isLocal) { renderGTable(); return; }
@@ -2859,6 +2871,7 @@ function renderGTable() {
   document.getElementById('g-table-wrap').style.display    = hasStudents ? 'block' : 'none';
   document.getElementById('g-upload-area').style.display   = hasStudents ? 'none' : '';
   document.getElementById('g-instructions').style.display  = hasStudents ? 'none' : '';
+  document.getElementById('g-clear-btn').style.display     = hasStudents ? '' : 'none';
   if (!hasStudents) { setStatus('g-status', ''); return; }
 
   const rows = sortedStudents();
