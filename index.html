@@ -986,7 +986,7 @@ header h1{font-size:20px;font-weight:700}
         <div class="print-form-card">
           <div class="print-form-hdr">
             <span>נספח ט"ו — בדיקת אוטובוס לפני היציאה לטיול</span>
-            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-0')">🖨️ הדפס</button>
+            <button class="btn btn-secondary" style="font-size:13px;flex-shrink:0" onclick="printPrintForm('pf-0', true)">🖨️ הדפס</button>
           </div>
           <div id="pf-0" class="print-form-preview">
             <div style="text-align:center;border-bottom:2px solid #333;margin-bottom:16px;padding-bottom:10px">
@@ -3467,10 +3467,16 @@ async function exportNotGoingPDF(printMode = false) {
 }
 
 // ─── Print-only appendices ────────────────────────────────────────────────────
-function printPrintForm(id) {
+function printPrintForm(id, compact = false) {
   const el = document.getElementById(id);
   if (!el) return;
-  doPrint(`<div style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;padding:15mm 20mm;font-size:13px;line-height:2.2;color:#222">${el.innerHTML}</div>`);
+  const wrapStyle = compact
+    ? 'padding:6mm 10mm;font-size:11px;line-height:1.4'
+    : 'padding:15mm 20mm;font-size:13px;line-height:2.2';
+  const extraCss = compact
+    ? '<style>td,th{padding:4px 8px!important}p{margin:2px 0!important}.section-title{margin:6px 0 2px!important}</style>'
+    : '';
+  doPrint(`${extraCss}<div style="direction:rtl;font-family:Arial,'Noto Sans Hebrew',sans-serif;${wrapStyle};color:#222">${el.innerHTML}</div>`);
 }
 
 function printAllPrintForms() {
