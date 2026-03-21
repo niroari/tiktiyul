@@ -3612,16 +3612,16 @@ function removeBusSign(i) {
 function buildSignHtml(bus) {
   const logo = signsData.logo;
   const logoHtml = logo
-    ? `<img src="${logo}" style="position:absolute;top:14mm;left:14mm;max-height:22mm;max-width:50mm;object-fit:contain" onerror="this.style.display='none'">`
+    ? `<img src="${logo}" style="position:absolute;top:10mm;left:10mm;max-height:88mm;max-width:80mm;object-fit:contain" onerror="this.style.display='none'">`
     : '';
   return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
     border:8px solid #1b4332;box-sizing:border-box;position:relative;background:white;
-    font-family:Arial,'Noto Sans Hebrew',sans-serif;direction:rtl;padding:16mm 20mm">
+    font-family:Arial,'Noto Sans Hebrew',sans-serif;direction:rtl;padding:10mm 16mm">
     ${logoHtml}
-    <div style="font-size:38pt;font-weight:bold;color:#444;margin-bottom:6mm;text-align:center;letter-spacing:1px">
+    <div style="font-size:76pt;font-weight:bold;color:#444;margin-bottom:18mm;text-align:center;letter-spacing:1px">
       אוטובוס מספר ${esc(bus.num)}
     </div>
-    <div style="font-size:${bus.classes.length > 8 ? '72' : '96'}pt;font-weight:bold;color:#1b4332;line-height:1.05;text-align:center">
+    <div style="font-size:${bus.classes.length > 8 ? '216' : '288'}pt;font-weight:bold;color:#1b4332;line-height:1;text-align:center">
       ${esc(bus.classes)}
     </div>
   </div>`;
