@@ -638,8 +638,12 @@ header h1{font-size:20px;font-weight:700}
         <!-- Controls row -->
         <div id="g-controls" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
           <span id="g-count" style="font-size:13px;color:#555"></span>
-          <div style="display:flex;align-items:center;gap:6px;margin-right:auto">
-            <label style="font-size:13px;white-space:nowrap">מיין לפי:</label>
+          <div style="display:flex;align-items:center;gap:6px;margin-right:auto;flex-wrap:wrap">
+            <label style="font-size:13px;white-space:nowrap">כיתה:</label>
+            <select id="g-class-filter" class="form-control" style="width:auto;font-size:13px;padding:4px 8px" onchange="renderGTable()">
+              <option value="">כל הכיתות</option>
+            </select>
+            <label style="font-size:13px;white-space:nowrap;margin-right:8px">מיין לפי:</label>
             <select id="g-sort-field" class="form-control" style="width:auto;font-size:13px;padding:4px 8px" onchange="renderGTable()">
               <option value="class">כיתה ← שם משפחה</option>
               <option value="last">שם משפחה</option>
@@ -3454,19 +3458,32 @@ function renderGTable() {
   document.getElementById('g-clear-btn').style.display     = hasStudents ? '' : 'none';
   if (!hasStudents) { setStatus('g-status', ''); return; }
 
+  // Populate class filter dropdown
+  const classFilterEl = document.getElementById('g-class-filter');
+  if (classFilterEl) {
+    const savedVal = classFilterEl.value;
+    const classes = [...new Set(gStudents.map(s => s.class))].sort((a,b) => a.localeCompare(b,'he'));
+    classFilterEl.innerHTML = '<option value="">כל הכיתות</option>' +
+      classes.map(c => `<option value="${esc(c)}"${c===savedVal?' selected':''}>${esc(c)}</option>`).join('');
+  }
+  const classFilter = classFilterEl?.value || '';
+
   const rows = sortedStudents();
-  const goingCount = gStudents.filter(s => s.going !== false).length;
-  document.getElementById('g-count').textContent =
-    goingCount === gStudents.length
-      ? `${gStudents.length} תלמידים`
-      : `${goingCount} יוצאים מתוך ${gStudents.length}`;
+  const filtered = classFilter ? rows.filter(s => s.class === classFilter) : rows;
+
+  const pool = classFilter ? gStudents.filter(s => s.class === classFilter) : gStudents;
+  const goingCount = pool.filter(s => s.going !== false).length;
+  document.getElementById('g-count').textContent = classFilter
+    ? `כיתה ${classFilter}: ${goingCount} יוצאים מתוך ${pool.length}`
+    : (goingCount === gStudents.length ? `${gStudents.length} תלמידים` : `${goingCount} יוצאים מתוך ${gStudents.length}`);
+
   const notGoingCount = gStudents.filter(s => s.going === false).length;
   const ngBtn = document.getElementById('g-not-going-btn');
   if (ngBtn) ngBtn.style.display = notGoingCount > 0 ? '' : 'none';
   const ngSpan = document.getElementById('g-not-going-count');
   if (ngSpan) ngSpan.textContent = notGoingCount;
 
-  document.getElementById('g-table-body').innerHTML = rows.map((s,i) =>
+  document.getElementById('g-table-body').innerHTML = filtered.map((s,i) =>
     `<tr style="${i%2===0?'':'background:#f7faf8'}${s.going===false?';opacity:0.45':''}">
       <td style="font-size:13px;direction:ltr">${esc(s.id)}</td>
       <td style="font-size:13px">${esc(s.last)}</td>
