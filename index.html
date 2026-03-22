@@ -139,7 +139,7 @@ header h1{font-size:20px;font-weight:700}
 .sig-badge.pending{background:#fff3cd;color:#856404}
 .sig-badge.signed{background:#d4edda;color:#155724}
 /* Sign page */
-#signPage{display:none;min-height:100vh;background:linear-gradient(135deg,#1b4332,#2d6a4f);align-items:center;justify-content:center}
+#signPage{display:none;min-height:100vh;background:linear-gradient(135deg,#1b4332,#2d6a4f);flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;gap:20px;box-sizing:border-box}
 .sign-card{background:white;border-radius:16px;padding:32px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
 .sign-card h2{font-size:20px;color:#1b4332;margin-bottom:6px}
 .sign-card .sign-meta{font-size:13px;color:#666;margin-bottom:20px;line-height:1.6}
@@ -1471,7 +1471,7 @@ header h1{font-size:20px;font-weight:700}
 
 <!-- ════ SIGN PAGE (opened via ?tiyulsign=) ════ -->
 <div id="signPage">
-  <div id="sign-preview-section" style="display:none;width:100%;max-width:700px;margin:0 auto 20px;background:white;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden">
+  <div id="sign-preview-section" style="display:none;width:100%;max-width:500px;background:white;border-radius:10px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <div style="background:#1b4332;color:white;padding:10px 16px;font-size:13px;font-weight:600">📄 המסמך לחתימה — גלול/י לצפייה</div>
     <div style="max-height:500px;overflow-y:auto">
       <img id="sign-preview-img" style="width:100%;display:block">
