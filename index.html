@@ -1471,6 +1471,12 @@ header h1{font-size:20px;font-weight:700}
 
 <!-- ════ SIGN PAGE (opened via ?tiyulsign=) ════ -->
 <div id="signPage">
+  <div id="sign-preview-section" style="display:none;width:100%;max-width:700px;margin:0 auto 20px;background:white;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden">
+    <div style="background:#1b4332;color:white;padding:10px 16px;font-size:13px;font-weight:600">📄 המסמך לחתימה — גלול/י לצפייה</div>
+    <div style="max-height:500px;overflow-y:auto">
+      <img id="sign-preview-img" style="width:100%;display:block">
+    </div>
+  </div>
   <div class="sign-card">
     <div style="font-size:40px;margin-bottom:10px">✍️</div>
     <h2 id="sign-role-title">חתימה</h2>
@@ -2375,6 +2381,7 @@ async function sendCSigLink() {
   }
   cSigStatus = 'pending';
   renderCRemoteSig();
+  captureAndSavePreview(docId, 'c_principal'); // non-blocking
   currentShareRole = 'c_principal';
   const url = `${location.origin}${location.pathname}?tiyulsign=${docId}`;
   document.getElementById('share-title').textContent = 'שלח לחתימה — מנהל/ת ביה"ס';
@@ -5353,6 +5360,7 @@ async function sendMasaPrincipalSigLink() {
   }
   masaPrincipalSigStatus = 'pending';
   renderMasaPrincipalRemoteSig();
+  captureAndSavePreview(docId, 'masa_principal'); // non-blocking
   currentShareRole = 'masa_principal';
   const url = `${location.origin}${location.pathname}?tiyulsign=${docId}`;
   document.getElementById('share-title').textContent = 'שלח לחתימה — מנהל/ת ביה"ס';
@@ -5496,6 +5504,7 @@ async function sendBSigLink(role) {
   }
   bSigStatus[role] = 'pending';
   renderBRemoteSig(role);
+  captureAndSavePreview(docId, role); // non-blocking
   // Show share modal
   currentShareRole = role;
   const url = `${location.origin}${location.pathname}?tiyulsign=${docId}`;
@@ -5546,6 +5555,106 @@ function shareGmail() {
 }
 
 // ─── Sign page (public — no login) ────────────────────────────────────────────
+
+async function captureAndSavePreview(docId, role) {
+  if (isLocal) return; // no Firestore in local mode
+  try {
+    let el, tempEl = null;
+
+    if (role === 'c_principal') {
+      const t = currentTrip;
+      const letterDate = document.getElementById('c-date')?.value ? formatDate(document.getElementById('c-date').value) : '___';
+      const from  = t.fromDate ? formatDate(t.fromDate) : '___';
+      const to    = t.toDate   ? formatDate(t.toDate)   : '___';
+      const dates = (from === to) ? from : `${from} – ${to}`;
+      el = document.getElementById('pdf-appendix-c');
+      el.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:30px 50px;font-size:11px;background:white;min-height:400px">
+        <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:10px;margin-bottom:30px">
+          <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+          <div style="font-size:16px;font-weight:bold;margin-top:6px">כתב מינוי לאחראי/ת טיול</div>
+        </div>
+        <div style="text-align:left;font-size:10px;margin-bottom:24px">תאריך: ${esc(letterDate)}</div>
+        <div style="font-size:11px;margin-bottom:8px">שם בית הספר: <strong>${esc(t.school||'')}</strong></div>
+        <div style="font-size:11px;margin-bottom:30px">אל: <strong>${esc(t.leaderName||'')}</strong></div>
+        <p style="font-size:13px;line-height:2.2;margin-bottom:50px">
+          הריני ממנה אותך לאחראי/ת טיול לתלמידי כית/ות <strong>${esc(t.classes||'')}</strong>
+          שיתקיים בתאריכים <strong>${esc(dates)}</strong>
+          במקום/באזור <strong>${esc(t.area||'')}</strong>.
+        </p>
+        <div style="margin-top:60px;display:inline-block;text-align:center">
+          <div style="font-size:11px;margin-bottom:4px;font-weight:bold">${esc(t.principalName||'מנהל/ת ביה"ס')}</div>
+          <div style="width:180px;height:60px;border-bottom:1px solid #333"></div>
+          <div style="padding-top:4px;font-size:9px;color:#555">חתימת מנהל/ת ביה"ס</div>
+        </div>
+      </div>`;
+
+    } else if (['teacher','coordinator','principal'].includes(role)) {
+      const t = currentTrip;
+      const schedRows = (bRows||[]).map(r => `<tr>
+        <td style="padding:3px 5px;border:1px solid #ccc;font-size:9px">${r.date ? formatDate(r.date) : ''}</td>
+        <td style="padding:3px 5px;border:1px solid #ccc;font-size:9px;text-align:center">${esc(r.from||'')}</td>
+        <td style="padding:3px 5px;border:1px solid #ccc;font-size:9px;text-align:center">${esc(r.to||'')}</td>
+        <td style="padding:3px 5px;border:1px solid #ccc;font-size:9px">${esc(r.activity||'')}</td>
+        <td style="padding:3px 5px;border:1px solid #ccc;font-size:9px">${esc(r.notes||'')}</td>
+      </tr>`).join('') || `<tr><td colspan="5" style="padding:6px;border:1px solid #ccc;color:#aaa;text-align:center;font-size:9px">—</td></tr>`;
+      const phone   = document.getElementById('b-phone')?.value   || '';
+      const weapons = document.getElementById('b-weapons')?.value || '';
+      const parents = document.getElementById('b-parents')?.value || '';
+      const lNotes  = document.getElementById('b-leader-notes')?.value   || '';
+      const pNotes  = document.getElementById('b-principal-notes')?.value || '';
+      el = document.getElementById('pdf-appendix-b');
+      el.innerHTML = `<div style="font-family:'Times New Roman',serif;direction:rtl;padding:14px;font-size:10px;background:white">
+        <div style="text-align:center;border-bottom:2px solid #1b4332;padding-bottom:8px;margin-bottom:12px">
+          <div style="font-size:8px;color:#666">משרד החינוך — מינהל חברה ונוער — של"ח וידיעת הארץ</div>
+          <div style="font-size:14px;font-weight:bold;margin-top:4px">נספח ב׳ — אישור תוכנית הטיול</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:9.5px">
+          <tr><td style="padding:4px 6px;border:1px solid #ddd;width:50%"><strong>כיתות:</strong> ${esc(t.classes||'')}</td><td style="padding:4px 6px;border:1px solid #ddd"><strong>אזור / יעד:</strong> ${esc(t.area||'')}</td></tr>
+          <tr><td style="padding:4px 6px;border:1px solid #ddd"><strong>מקום לינה:</strong> ${esc(t.accommodation||'')}</td><td style="padding:4px 6px;border:1px solid #ddd"><strong>חברת הסעה:</strong> ${esc(t.transport||'')}</td></tr>
+          <tr><td style="padding:4px 6px;border:1px solid #ddd"><strong>מלווים נושאי נשק:</strong> ${esc(weapons)}</td><td style="padding:4px 6px;border:1px solid #ddd"><strong>הורים מלווים:</strong> ${esc(parents)}</td></tr>
+          <tr><td style="padding:4px 6px;border:1px solid #ddd"><strong>אחראי/ת הטיול:</strong> ${esc(t.leaderName||'')}</td><td style="padding:4px 6px;border:1px solid #ddd"><strong>טלפון:</strong> ${esc(phone)}</td></tr>
+        </table>
+        <div style="font-weight:bold;font-size:10px;margin-bottom:4px">מסלול הטיול — לוח זמנים</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+          <thead><tr style="background:#1b4332;color:white">
+            <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:70px">תאריך</th>
+            <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:45px">משעה</th>
+            <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:45px">עד שעה</th>
+            <th style="padding:4px 5px;border:1px solid #999;font-size:9px">פירוט הפעילות</th>
+            <th style="padding:4px 5px;border:1px solid #999;font-size:9px;width:100px">הערות</th>
+          </tr></thead>
+          <tbody>${schedRows}</tbody>
+        </table>
+        <div style="font-weight:bold;font-size:9.5px;margin-bottom:3px">הערות אחראי/ת טיול</div>
+        <div style="border:1px solid #ccc;padding:6px;min-height:30px;font-size:9.5px;margin-bottom:8px;white-space:pre-wrap">${esc(lNotes)}</div>
+        <div style="font-weight:bold;font-size:9.5px;margin-bottom:3px">הערות מנהל/ת ביה"ס</div>
+        <div style="border:1px solid #ccc;padding:6px;min-height:30px;font-size:9.5px;white-space:pre-wrap">${esc(pNotes)}</div>
+      </div>`;
+
+    } else if (role === 'masa_principal') {
+      tempEl = document.createElement('div');
+      tempEl.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;direction:rtl';
+      tempEl.innerHTML = buildMasaPrintHtml();
+      document.body.appendChild(tempEl);
+      el = tempEl;
+    }
+
+    if (!el) return;
+    el.style.display = 'block';
+    const canvas = await html2canvas(el, { scale: 1.5, useCORS: true, backgroundColor: '#fff' });
+    el.style.display = 'none';
+    el.innerHTML = '';
+    if (tempEl) document.body.removeChild(tempEl);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+    await db.collection('tiyul_signatures').doc(docId + '_preview').set({
+      dataUrl, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.error('captureAndSavePreview failed:', e);
+  }
+}
+
 async function loadSignPage(docId) {
   signCurrentDocId = docId;
   setupCanvas(document.getElementById('sign-canvas'), null);
@@ -5571,6 +5680,16 @@ async function loadSignPage(docId) {
       document.getElementById('sign-submit-btn').style.display = 'none';
       document.getElementById('sign-canvas').style.display = 'none';
     }
+    // Load preview image (non-blocking)
+    try {
+      const previewDoc = await db.collection('tiyul_signatures').doc(docId + '_preview').get();
+      if (previewDoc.exists) {
+        const img  = document.getElementById('sign-preview-img');
+        const wrap = document.getElementById('sign-preview-section');
+        img.src = previewDoc.data().dataUrl;
+        wrap.style.display = '';
+      }
+    } catch(e) { console.error('preview load failed', e); }
   } catch(e) {
     document.getElementById('sign-meta').textContent = 'שגיאה בטעינה: ' + e.message;
   }
