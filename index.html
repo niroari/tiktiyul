@@ -3184,7 +3184,7 @@ function renderFClassTable() {
   const unsplitBtn = (cls) => `<button onclick="unsplitFClass('${q(cls)}')"
     style="font-size:11px;padding:2px 8px;background:none;border:1px solid #e57373;border-radius:4px;cursor:pointer;color:#c62828;font-family:inherit">✕ בטל</button>`;
 
-  body.innerHTML = classes.flatMap(cls => {
+  body.innerHTML = classes.flatMap((cls, ci) => {
     const isSplit = !!fSplits[cls];
     if (!isSplit) {
       return [`<tr>
@@ -3198,23 +3198,35 @@ function renderFClassTable() {
     // Split rows
     const parts = fSplits[cls]; // ['count1','count2','count3']
     const partLabels = ['חלק א׳','חלק ב׳','חלק ג׳'];
+    const splitSum = parts.reduce((s,v)=>s+(parseInt(v)||0),0);
+    const isOver   = splitSum > planned[cls];
     return [
       `<tr style="background:#fff8e1">
         <td style="padding:5px 8px;font-size:13px;font-weight:bold">${esc(cls)}</td>
         <td style="text-align:center;font-size:13px;color:#333;font-weight:bold">${planned[cls]}</td>
-        <td style="font-size:11px;color:#888;text-align:center">סה"כ: ${parts.reduce((s,v)=>s+(parseInt(v)||0),0) || '—'}</td>
+        <td style="text-align:center"><span id="f-split-total-${ci}" style="font-size:11px;font-weight:600;color:${isOver?'#c62828':'#888'}">${splitSum?`סה״כ: ${splitSum}${isOver?' ⚠️':''}`:'—'}</span></td>
         <td style="text-align:center">${unsplitBtn(cls)}</td>
       </tr>`,
       ...parts.map((count, si) => `<tr style="background:#fffde7">
         <td style="padding:3px 8px 3px 20px;font-size:12px;color:#666">${partLabels[si]}</td>
         <td></td>
         <td><input type="number" value="${esc(count||'')}" placeholder="כמה תלמידים" min="0"
-          oninput="fSplits['${q(cls)}'][${si}]=this.value;renderFClassTable();renderFBuses();scheduleF()"
+          oninput="fSplits['${q(cls)}'][${si}]=this.value;updateFSplitTotal(${ci},'${q(cls)}',${planned[cls]});renderFBuses();scheduleF()"
           style="width:110px;text-align:center;font-size:12px"></td>
         <td></td>
       </tr>`)
     ];
   }).join('');
+}
+
+function updateFSplitTotal(ci, cls, plannedCount) {
+  const parts = fSplits[cls] || [];
+  const sum    = parts.reduce((s,v)=>s+(parseInt(v)||0),0);
+  const isOver = sum > plannedCount;
+  const el = document.getElementById(`f-split-total-${ci}`);
+  if (!el) return;
+  el.textContent = sum ? `סה״כ: ${sum}${isOver?' ⚠️':''}` : '—';
+  el.style.color  = isOver ? '#c62828' : '#888';
 }
 
 function splitFClass(cls) {
