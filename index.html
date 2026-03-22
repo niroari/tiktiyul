@@ -3247,7 +3247,13 @@ function renderFClassTable() {
           oninput="fSplits['${q(cls)}'][${si}]=this.value;updateFSplitTotal(${ci},'${q(cls)}',${planned[cls]});renderFBuses();scheduleF()"
           style="width:110px;text-align:center;font-size:12px"></td>
         <td></td>
-      </tr>`)
+      </tr>`),
+      ...(parts.length < 3 ? [`<tr style="background:#fffde7">
+        <td colspan="4" style="padding:2px 8px 4px 20px">
+          <button onclick="addFSplitPart('${q(cls)}')"
+            style="font-size:11px;padding:2px 10px;background:none;border:1px solid #a5d6a7;border-radius:4px;cursor:pointer;color:#2d6a4f;font-family:inherit">+ חלק ג׳</button>
+        </td>
+      </tr>`] : [])
     ];
   }).join('');
 }
@@ -3263,9 +3269,15 @@ function updateFSplitTotal(ci, cls, plannedCount) {
 }
 
 function splitFClass(cls) {
-  fSplits[cls] = ['', '', ''];
+  fSplits[cls] = ['', ''];
   renderFClassTable();
   renderFBuses();
+  scheduleF();
+}
+
+function addFSplitPart(cls) {
+  if (fSplits[cls] && fSplits[cls].length < 3) fSplits[cls].push('');
+  renderFClassTable();
   scheduleF();
 }
 function unsplitFClass(cls) {
