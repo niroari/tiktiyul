@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>תיק טיול</title>
+<title>תיק טיול — חתימה על מסמך</title>
+<meta property="og:title" content="תיק טיול — חתימה על מסמך">
+<meta property="og:description" content="לחץ/י על הקישור לצפייה במסמך וחתימה">
+<meta property="og:site_name" content="תיק טיול">
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -5539,7 +5542,7 @@ function shareWhatsApp() {
   const t = currentTrip;
   const msg = currentShareRole === '_trip'
     ? `שלום, הזמנה לשיתוף טיול "${t?.name||''}".\nלחץ/י על הקישור להצטרף:\n${url}`
-    : `שלום, אבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על טיול "${t?.name||''}".\nלחץ/י על הקישור לחתימה:\n${url}`;
+    : `*תיק טיול — חתימה על מסמך*\nשלום, אבקש חתימתך בתור ${ROLE_LABELS[currentShareRole]} על טיול "${t?.name||''}".\nלחץ/י על הקישור לצפייה במסמך ולחתימה:\n${url}`;
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 function shareGmail() {
